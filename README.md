@@ -53,7 +53,7 @@ Receive backup status notifications and reports ([details](example/report-telegr
 
 ## Configuration
 
-Create the `.env` file under **src** folder to customize settings such as show debug info, validation_day, notification and Telegram integration.
+Create the `.env` file under **src** folder to customize settings such as show debug info, expiration warning days, notification and Telegram integration.
 
 ```
 DEBUG_ON=<FALSE|TRUE>
