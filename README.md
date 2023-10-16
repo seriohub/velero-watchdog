@@ -2,7 +2,7 @@
 
 > [!WARNING]  
 **Attention Users:** This project is in active development, and certain tools or features might still be under construction. We kindly urge you to exercise caution while utilizing the tools within this environment. While every effort is being made to ensure the stability and reliability of the project, there could be unexpected behaviors or limited functionalities in some areas.
-We highly recommend thoroughly testing the project in non-production or sandbox environments before implementing it in critical or production systems. Your feedback is invaluable to us; if you encounter any issues or have suggestions for improvement, please feel free to [report them](link_to_issue_tracker). Your input helps us enhance the project's performance and user experience.
+We highly recommend thoroughly testing the project in non-production or sandbox environments before implementing it in critical or production systems. Your feedback is invaluable to us; if you encounter any issues or have suggestions for improvement, please feel free to [report them](https://github.com/seriohub/velero-watchdog/issues). Your input helps us enhance the project's performance and user experience.
 Thank you for your understanding and cooperation.
 
 ## Description
@@ -38,7 +38,7 @@ Receive backup status notifications and reports ([details](example/report-telegr
 
 1. Clone the repository:
    ```
-   git clone <repository_url>
+   git clone https://github.com/seriohub/velero-watchdog.git
    cd project-directory
    ```
 
