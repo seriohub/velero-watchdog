@@ -39,7 +39,7 @@ Receive backup status notifications and reports ([details](example/report-telegr
 1. Clone the repository:
    ```
    git clone https://github.com/seriohub/velero-watchdog.git
-   cd project-directory
+   cd velero-watchdog
    ```
 
 2. Install dependencies:
