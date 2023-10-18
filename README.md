@@ -64,7 +64,7 @@ KUBE_CONFIG_FILE=<PATH_TO_CONFIG_FILE>
 ```
 
 
-| FIELD                  | TYPE   | DECRIPTION                                                                             |
+| FIELD                  | TYPE   | DESCRIPTION                                                                             |
 |------------------------|--------|----------------------------------------------------------------------------------------|
 | `DEBUG_ON`             | Bool   | View debugging information.                                                            |
 | `EXPIRES_DAYS_WARNING` | Int    | Number of days to backup expiration below which to display a warning about the backup. |
