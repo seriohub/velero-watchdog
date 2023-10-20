@@ -7,6 +7,7 @@ from collections import OrderedDict
 from utils.print_helper import PrintHelper
 from utils.handle_exceptions import *
 import json
+import os
 
 load_dotenv()
 
@@ -120,12 +121,14 @@ class VeleroWatchdog:
         plural = 'backups'
         backup_list = custom_api.list_namespaced_custom_object(group, version, namespace, plural)
 
-        # last_backup_info = {}
         last_backup_info = OrderedDict()
 
         # Extract last backup for every schedule
         for backup in backup_list.get('items', []):
-            schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
+            if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+                schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
+            else:
+                schedule_name = None
 
             if backup['status'] != {}:
                 if 'phase' in backup['status']:
@@ -152,8 +155,22 @@ class VeleroWatchdog:
                 else:
                     completion_timestamp = 'N/A'
 
-                if schedule_name not in last_backup_info or backup_name > last_backup_info[schedule_name]['backup_name']:
-                    last_backup_info[schedule_name] = {
+                backup_same_schedule_name = None
+                schedules = []
+                backup_same_schedule_data = {}
+                if schedule_name is not None:
+                    schedules = [last_backup_info[item]["schedule"] for item in dict(last_backup_info)]
+                    backup_same_schedule_name = next((item for item in last_backup_info if last_backup_info[item]["schedule"] == schedule_name), None)
+                    if backup_same_schedule_name is not None:
+                        backup_same_schedule_data = last_backup_info[backup_same_schedule_name]
+
+                if schedule_name is None \
+                    or (schedule_name is not None and schedule_name not in schedules) \
+                        or (schedule_name is not None and backup_same_schedule_data is not None and backup_name > backup_same_schedule_data['backup_name']):
+
+                    if backup_same_schedule_name is not None:
+                        del last_backup_info[backup_same_schedule_name]
+                    last_backup_info[backup_name] = {
                         'backup_name': backup_name,
                         'phase': phase,
                         'errors': errors,
@@ -163,6 +180,7 @@ class VeleroWatchdog:
                         'completion_timestamp': completion_timestamp,
                         'expire': time_expire__str
                     }
+
         return last_backup_info
 
     @handle_exceptions
@@ -301,6 +319,8 @@ class VeleroWatchdog:
         backup_count = len(backups)
         backup_completed = 0
         backup_in_progress = 0
+        backup_failed = 0
+        backup_partially_failed = 0
         backup_in_errors = 0
         backup_in_wrn = 0
         expired_backup = 0
@@ -310,22 +330,26 @@ class VeleroWatchdog:
         backup_in_progress_str = ''
         error_str = ''
         wrn_str = ''
+        backup_failed_str = ''
+        backup_partially_failed_str = ''
 
-        for schedule_name, backup_info in backups.items():
-            self.print_ls.debug_if(self.debug, f'Backup schedule: {schedule_name}')
+        for backup_name, backup_info in backups.items():
+            self.print_ls.debug_if(self.debug, f'Backup schedule: {backup_name}')
 
             #
             # build current state string
             #
-            current_state = str(schedule_name) + '\n'
+            current_state = str(backup_name) + '\n'
+
+            current_state += '\t schedule name=' + str(backup_info['schedule']) + '\n'
 
             # add end at field
             if len(backup_info['completion_timestamp']) > 0:
-                current_state += '\t\t end at=' + str(backup_info['completion_timestamp']) + '\n'
+                current_state += '\t end at=' + str(backup_info['completion_timestamp']) + '\n'
 
             # add expire field
             if len(backup_info['expire']) > 0:
-                current_state += '\t\t expire=' + str(backup_info['expire'])
+                current_state += '\t expire=' + str(backup_info['expire'])
 
                 day = self._extract_days_from_str(str(backup_info['expire']))
                 if day is None:
@@ -339,25 +363,31 @@ class VeleroWatchdog:
 
             # add status field
             if len(backup_info['phase']) > 0:
-                current_state += '\t\t status=' + str(backup_info['phase']) + '\n'
+                current_state += '\t status=' + str(backup_info['phase']) + '\n'
                 if backup_info['phase'].lower() == 'completed':
                     backup_completed += 1
                 elif backup_info['phase'].lower() == 'inprogress':
-                    backup_in_progress_str += f'\t\t{str(schedule_name)}\n'
+                    backup_in_progress_str += f'\n\t{str(backup_name)}'
                     backup_in_progress += 1
+                elif backup_info['phase'].lower() == 'failed':
+                    backup_failed_str += f'\n\t{str(backup_name)}'
+                    backup_failed += 1
+                elif backup_info['phase'].lower() == 'partiallyfailed':
+                    backup_partially_failed_str += f'\n\t{str(backup_name)}'
+                    backup_partially_failed += 1
 
             # add error field
             error = self._get_backup_error_message(str(backup_info['errors']))
             if len(error) > 0:
-                error_str += f'\t\t{str(schedule_name)}'
-                current_state += '\t\t' + 'error=' + error + ' '
+                error_str += f'\t{str(backup_name)}'
+                current_state += '\t' + ' error=' + error + ' '
                 backup_in_errors += 1
 
             # add warning field
             wrn = self._get_backup_error_message(str(backup_info['warnings']))
             if len(wrn) > 0:
-                wrn_str += f'\t\t{str(schedule_name)}'
-                current_state += '\t\t' + 'warning=' + wrn + ' '
+                wrn_str += f'\t{str(backup_name)}'
+                current_state += '\t' + 'warning=' + wrn + '\n'
                 backup_in_wrn += 1
 
             current_state += '\n'
@@ -365,20 +395,25 @@ class VeleroWatchdog:
 
         message = f'Backup details [{backup_count}/{counter_all}]:\n{message}'
 
-        message_header = ((f'{point} Namespaces={counter_all} \n'
-                           f'{point} Unscheduled namespaces={counter}\n'
-                           f'{point} Backup active={backup_count} ') +
+        message_header = (f'{point} Namespaces={counter_all} \n'
+                          f'{point} Unscheduled namespaces={counter}\n'
+                          f'Backups Stats based on last backup for every schedule and backup without schedule'                          
+                          f'\n{point} Total={backup_count}'
                           f'\n{point} Completed={backup_completed}')
 
         if backup_in_progress > 0:
-            message_header += f'\n{point} In Progress={backup_in_progress}\n{backup_in_progress_str}'
+            message_header += f'\n{point} In Progress={backup_in_progress}{backup_in_progress_str}'
         if backup_in_errors > 0:
-            message_header += f'\n{point} Errors={backup_in_errors}\n{error_str}'
+            message_header += f'\n{point} With Errors={backup_in_errors}\n{error_str}'
         if backup_in_wrn > 0:
-            message_header += f'\n{point} Wrn={backup_in_wrn}\n{wrn_str}'
+            message_header += f'\n{point} With Warnings={backup_in_wrn}\n{wrn_str}'
+        if backup_failed > 0:
+            message_header += f'\n{point} Failed={backup_failed}{backup_failed_str}'
+        if backup_partially_failed > 0:
+            message_header += f'\n{point} Partially Failed={backup_partially_failed}{backup_partially_failed_str}'
 
         if expired_backup > 0:
-            message_header += f'\nNumber of backups in warning period={expired_backup} [expires day less than {self.expires_day_warning}d]'
+            message_header += f'\n{point} Number of backups in warning period={expired_backup} [expires day less than {self.expires_day_warning}d]'
 
         if send_to_stdout:
             print(f'{message_header}')
@@ -409,7 +444,7 @@ class VeleroWatchdog:
         self.print_ls.debug_if(self.debug, 'print_last_backup_status...')
 
         backup_info_dict = self._get_k8s_last_backup_status()
-        print('Details last backup operations:')
+        print('Details last backup for every schedule and backups without schedule:')
         print('{:<40} {:<60} {:<25} {:<25} {:<10} {:<20} {:<20} {:<20} '.format('Schedula',
                                                                                 'Name',
                                                                                 'Completion Timestamp',

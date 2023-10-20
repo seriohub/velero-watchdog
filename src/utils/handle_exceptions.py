@@ -1,5 +1,6 @@
 import sys
-import os
+# import os
+
 
 def handle_exceptions(fn):
     from functools import wraps
@@ -11,7 +12,7 @@ def handle_exceptions(fn):
         except Exception as Ex:
             # print("Handle Exceptions:", Ex)
             exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print("Handle Exceptions:", Ex, "type:", exc_type)
             return {'error': fn.__name__,
                     'ex': Ex}
