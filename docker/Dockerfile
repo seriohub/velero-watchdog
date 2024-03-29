@@ -1,6 +1,11 @@
 FROM python:3.10-slim as velero-watchdog
-
 LABEL maintainer="DS"
+
+ARG VERSION
+ARG BUILD_DATE
+
+ENV BUILD_VERSION=$VERSION
+ENV BUILD_DATE=$BUILD_DATE
 
 # Install system dependencies
 RUN apt-get update && \
