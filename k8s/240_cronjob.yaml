@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: velero-report
+  namespace: velero-ui
+spec:
+  schedule: "0 8 * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: k8s-read-only-service-account
+          containers:
+          - name: velero-watchdog-report
+            image: dserio83/velero-watchdog:dev
+            command: ["python3", "watchdog.py"]
+            imagePullPolicy: IfNotPresent
+            envFrom:
+              - configMapRef:
+                  name: velero-notifications-config
+          restartPolicy: Never

@@ -1,0 +1,49 @@
+k8SReadOnlyServiceAccount:
+  serviceAccount:
+    annotations: {}
+kubernetesClusterDomain: cluster.local
+report:
+  failedJobsHistoryLimit: 0
+  schedule: 0 8 * * *
+  successfulJobsHistoryLimit: 0
+  veleroWatchdogReport:
+    image:
+      repository: dserio83/velero-watchdog
+      tag: dev
+    imagePullPolicy: IfNotPresent
+watchdog:
+  replicas: 1
+  veleroMonitoring:
+    image:
+      repository: dserio83/velero-watchdog
+      tag: dev
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1256Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+watchdogClusterip:
+  ports:
+  - port: 8001
+    protocol: TCP
+    targetPort: 8001
+  type: ClusterIP
+watchdogConfig:
+  backupEnable: "True"
+  emailAccount: <email>
+  emailEnable: "False"
+  emailPassword: <pwd>
+  emailRecipients: <recipients>
+  emailSmtpPort: <smtp-port>
+  emailSmtpServer: <smtp-server>
+  expiresDaysWarning: "29"
+  k8SInclusterMode: "True"
+  processClusterName: <cluster-name>
+  processCycleSec: "1800"
+  scheduleEnable: "True"
+  telegramChatId: <chat-id>
+  telegramEnable: "False"
+  telegramToken: <token>

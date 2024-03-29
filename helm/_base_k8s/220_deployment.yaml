@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velero-watchdog
+  namespace: velero-ui
+  labels:
+    app: velero-watchdog
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: velero-watchdog
+        tier: backend
+    spec:
+      serviceAccountName: k8s-read-only-service-account
+      containers:
+        - name: velero-monitoring
+          image: dserio83/velero-watchdog:dev
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: velero-watchdog-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1256Mi"
+              cpu: "500m"

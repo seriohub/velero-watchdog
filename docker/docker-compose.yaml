@@ -1,0 +1,41 @@
+version: '3.0'
+services:
+  velero-watchdog-stack:
+    container_name: velero-watchdog
+    image: dserio83/velero-watchdog:latest
+    restart: always
+    network_mode: bridge
+    command: ["python3", "watchdog.py"]
+    working_dir: /app
+    volumes:
+      - velero_watchdog_vol:/app/logs
+      # - velero_watchdog_config:/app/config
+      - ${KUBE_CONFIG_FILE}:/root/.kube/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+    - 'DEBUG=False'
+    - 'LOG_SAVE=True'
+    - 'PROCESS_LOAD_KUBE_CONFIG=True'
+    - 'PROCESS_KUBE_CONFIG=~/.kube/config'
+    - 'PROCESS_CYCLE_SEC=1800'
+    - 'PROCESS_CLUSTER_NAME=${PROCESS_CLUSTER_NAME}'
+    - 'TELEGRAM_ENABLE=True'
+    - 'TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}'
+    - 'TELEGRAM_TOKEN=${TELEGRAM_TOKEN}'
+    - 'EMAIL_ENABLE=True'
+    - 'EMAIL_SMTP_SERVER=${EMAIL_SMTP_SERVER}'
+    - 'EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}'
+    - 'EMAIL_ACCOUNT=${EMAIL_ACCOUNT}'
+    - 'EMAIL_PASSWORD=${EMAIL_PASSWORD}'
+    - 'EMAIL_RECIPIENTS=${EMAIL_RECIPIENTS}'
+    - 'BACKUP_ENABLE=True'
+    - 'SCHEDULE_ENABLE=True'
+    - 'EXPIRES_DAYS_WARNING=29'
+    # IGNORE_NM_1="regex"
+    # IGNORE_NM_2="regex"
+    # IGNORE_NM_3="regex"
+volumes:
+  velero_watchdog_vol:
+    external: true
+#  velero_watchdog_config:
+#    external: true
