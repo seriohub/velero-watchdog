@@ -1,5 +1,6 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
+from dotenv.main import dotenv_values
 
 from utils.handle_error import handle_exceptions_method
 
@@ -232,3 +233,14 @@ class Config:
                 return lev
 
         return "info"
+
+    def get_env_variables(self):
+        data = dotenv_values(find_dotenv())
+        kv = {}
+        for k, v in data.items():
+            if k.startswith('EMAIL_PASSWORD') or k.startswith('TELEGRAM_TOKEN'):
+                v = v[0].ljust(len(v) - 1, '*')
+                # print(temp)
+                # v = temp
+            kv[k] = v
+        return kv

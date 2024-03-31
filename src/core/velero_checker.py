@@ -124,19 +124,17 @@ class VeleroChecker:
                 if self.first_run:
                     backups = await self.__process_first_backups_report(data[self.k8s_config.backup_key])
                 else:
-                    print("20")
                     backups = await self.__process_difference_report(data[self.k8s_config.backup_key])
 
                 messages = dict(cluster_name)
                 has_diff = False
-                if isinstance(schedules, dict):
+                if isinstance(schedules, dict) and len(schedules) > 0:
                     has_diff = True
                     messages.update(schedules)
-                if isinstance(backups, dict):
+                if isinstance(backups, dict) and len(backups) > 0:
                     has_diff = True
                     messages.update(backups)
                 if has_diff:
-                    print("messages", len(messages))
                     await self.__send_to_dispatcher(messages)
 
             else:
@@ -267,11 +265,12 @@ class VeleroChecker:
             print("backup_name", backup_name)
             if backup_name in backups_diff['added']:
                 # add status field
-                print(backup_info)
+                # print(backup_info)
                 if len(backup_info['phase']) > 0:
                     if backup_info['phase'].lower() == 'completed':
-                        backup_completed += 1
-                        backup_completed_str += f'\n\t{str(backup_name)}'
+                        # backup_completed += 1
+                        # backup_completed_str += f'\n\t{str(backup_name)}'
+                        pass
                     elif backup_info['phase'].lower() == 'inprogress':
                         backup_in_progress_str += f'\n\t{str(backup_name)}'
                         backup_in_progress += 1

@@ -26,5 +26,5 @@ if __name__ == '__main__':
                 port=int(endpoint_port),
                 reload=True,
                 # log_level=log_level,
-                # workers=2,
+                workers=2,
                 )
