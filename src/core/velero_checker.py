@@ -265,11 +265,12 @@ class VeleroChecker:
             print("backup_name", backup_name)
             if backup_name in backups_diff['added']:
                 # add status field
-                print(backup_info)
+                # print(backup_info)
                 if len(backup_info['phase']) > 0:
                     if backup_info['phase'].lower() == 'completed':
-                        backup_completed += 1
-                        backup_completed_str += f'\n\t{str(backup_name)}'
+                        # backup_completed += 1
+                        # backup_completed_str += f'\n\t{str(backup_name)}'
+                        pass
                     elif backup_info['phase'].lower() == 'inprogress':
                         backup_in_progress_str += f'\n\t{str(backup_name)}'
                         backup_in_progress += 1
