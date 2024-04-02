@@ -244,3 +244,11 @@ class Config:
                 # v = temp
             kv[k] = v
         return kv
+
+    def get_notification_skip_completed(self):
+        res = self.load_key('NOTIFICATION_SKIP_COMPLETED', 'True')
+        return True if res.lower() == "true" or res.lower() == "1" else False
+
+    def get_notification_skip_inprogress(self):
+        res = self.load_key('NOTIFICATION_SKIP_INPROGRESS', 'True')
+        return True if res.lower() == "true" or res.lower() == "1" else False
