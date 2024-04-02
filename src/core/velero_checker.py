@@ -267,11 +267,10 @@ class VeleroChecker:
                 # add status field
                 # print(backup_info)
                 if len(backup_info['phase']) > 0:
-                    if backup_info['phase'].lower() == 'completed':
-                        # backup_completed += 1
-                        # backup_completed_str += f'\n\t{str(backup_name)}'
-                        pass
-                    elif backup_info['phase'].lower() == 'inprogress':
+                    if not config_app.get_notification_skip_completed() and backup_info['phase'].lower() == 'completed':
+                        backup_completed += 1
+                        backup_completed_str += f'\n\t{str(backup_name)}'
+                    elif not config_app.get_notification_skip_inprogress() and backup_info['phase'].lower() == 'inprogress':
                         backup_in_progress_str += f'\n\t{str(backup_name)}'
                         backup_in_progress += 1
                     elif backup_info['phase'].lower() == 'failed':

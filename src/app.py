@@ -46,7 +46,7 @@ async def report():
     return JSONResponse(content=response.toJSON(), status_code=200)
 
 @app.get("/get-config")
-async def report():
+async def get_config():
     res = configHelper.get_env_variables()
     response = SuccessfulRequest(payload=res)
     return JSONResponse(content=response.toJSON(), status_code=200)
