@@ -5,6 +5,15 @@
 We highly recommend thoroughly testing the project in non-production or sandbox environments before implementing it in critical or production systems. Your feedback is invaluable to us; if you encounter any issues or have suggestions for improvement, please feel free to [report them](https://github.com/seriohub/velero-watchdog/issues). Your input helps us enhance the project's performance and user experience.
 Thank you for your understanding and cooperation.
 
+> [!IMPORTANT]
+> Velero-Watchdog project is part of a project consisting of three modules:
+> - [Velero-API](https://github.com/seriohub/velero-api/)
+> - [Velero-UI](https://github.com/seriohub/velero-ui/)
+> - Velero-Watchdog
+
+> [!TIP]
+> [Helm installation is recommended](https://github.com/seriohub/velero-helm/)
+
 ## Description
 
 This Python project is designed to monitor the status of Velero in Kubernetes environments and alert when something is not working.
