@@ -63,10 +63,8 @@ class KubernetesStatusRun:
         while flag:
             flag = loop
             try:
-                print("self.cycle_seconds", self.cycle_seconds)
-
+                self.print_helper.info(f"self.cycle_seconds {self.cycle_seconds}")
                 data_res = {self.k8s_config.cluster_name_key: cluster_name}
-
                 if self.k8s_config.schedule_enable:
                     schedule_list = self.velero_stat.get_k8s_velero_schedules()
                     data_res[self.k8s_config.schedule_key] = schedule_list

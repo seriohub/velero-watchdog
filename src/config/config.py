@@ -150,6 +150,23 @@ class Config:
     def email_sender(self):
         return self.load_key('EMAIL_ACCOUNT', '')
 
+    # LS 2024.04.10 add slack definition - BEGIN
+
+    @handle_exceptions_method
+    def slack_token(self):
+        return self.load_key('SLACK_TOKEN', '', mask_value=True)
+
+    @handle_exceptions_method
+    def slack_channel_id(self):
+        return self.load_key('SLACK_CHANNEL', '', mask_value=True)
+
+    @handle_exceptions_method
+    def slack_enable(self):
+        res = self.load_key('SLACK_ENABLE', 'False')
+        return True if res.lower() == "true" or res.lower() == "1" else False
+
+    # LS 2024.04.10 add slack definition - END
+
     @handle_exceptions_method
     def k8s_load_kube_config_method(self):
         res = self.load_key('PROCESS_LOAD_KUBE_CONFIG', 'True')

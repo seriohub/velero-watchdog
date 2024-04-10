@@ -10,6 +10,7 @@ from core.velero_checker import VeleroChecker
 from core.dispatcher import Dispatcher
 from core.dispatcher_telegram import DispatcherTelegram
 from core.dispatcher_email import DispatcherEmail
+from core.dispatcher_slack import DispatcherSlack
 
 from utils.handle_error import handle_exceptions_async_method
 from utils.printer import PrintHelper
@@ -58,6 +59,8 @@ class Watchdog:
         queue_dispatcher = asyncio.Queue()
         queue_dispatcher_telegram = asyncio.Queue()
         queue_dispatcher_mail = asyncio.Queue()
+        # LS 2024.04.10 add slack queue
+        queue_dispatcher_slack = asyncio.Queue()
 
         tasks.append(KubernetesStatusRun(queue_request=self.queue_request,
                                          queue=queue_data,
@@ -76,6 +79,7 @@ class Watchdog:
         tasks.append(Dispatcher(queue=queue_dispatcher,
                                 queue_telegram=queue_dispatcher_telegram,
                                 queue_mail=queue_dispatcher_mail,
+                                queue_slack=queue_dispatcher_slack,
                                 dispatcher_config=disp_class,
                                 k8s_key_config=k8s_class
                                 ))
@@ -92,6 +96,14 @@ class Watchdog:
                                      k8s_key_config=k8s_class
                                      ))
         dispatcher_mail = tasks[-1]
+
+        # LS 2024.04.10 add slack definition
+        tasks.append(DispatcherSlack(queue=queue_dispatcher_slack,
+                                     dispatcher_config=disp_class,
+                                     k8s_key_config=k8s_class
+                                     ))
+        dispatcher_slack = tasks[-1]
+
         try:
 
             if daemon:
@@ -105,6 +117,9 @@ class Watchdog:
                     await dispatcher_telegram.run(loop=False)
                 if self.config_prg.email_enable():
                     await dispatcher_mail.run(loop=False)
+                # LS 2024.04.10 slack channel
+                if self.config_prg.slack_enable():
+                    await dispatcher_slack.run(loop=False)
 
         except KeyboardInterrupt:
             self.print_helper.wrn("user request stop")

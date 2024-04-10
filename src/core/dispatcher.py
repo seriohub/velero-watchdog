@@ -17,6 +17,7 @@ class Dispatcher:
                  queue=None,
                  queue_telegram=None,
                  queue_mail=None,
+                 queue_slack=None,
                  dispatcher_config: ConfigDispatcher = None,
                  k8s_key_config: ConfigK8sProcess = None):
 
@@ -34,6 +35,7 @@ class Dispatcher:
         self.queue = queue
         self.queue_telegram = queue_telegram
         self.queue_mail = queue_mail
+        self.queue_slack = queue_slack
 
     @handle_exceptions_async_method
     async def __put_in_queue__(self,
@@ -61,11 +63,13 @@ class Dispatcher:
                 flag = loop
                 # get a unit of work
                 item = await self.queue.get()
-                print(item)
+                # print(item)
                 # check for stop signal
                 if item is None:
                     break
-
+                # LS 2024.04.10 temporary limit message length
+                if len(item) < 20:
+                    break
                 self.print_helper.debug(f"dispatcher new receive element")
 
                 if item is not None and len(item) > 0:
@@ -75,8 +79,13 @@ class Dispatcher:
                     if self.dispatcher_config.email_enable:
                         await self.__put_in_queue__(self.queue_mail,
                                                     item)
+                    if self.dispatcher_config.slack_enable:
+                        await self.__put_in_queue__(self.queue_slack,
+                                                    item)
+
                     if (not self.dispatcher_config.telegram_enable and
-                            not self.dispatcher_config.email_enable):
+                            not self.dispatcher_config.email_enable and
+                            not self.dispatcher_config.slack_enable):
                         self.print_helper.info(f"send_to_std_out[Disable send...only std out]=\n{item}")
 
         except Exception as err:
