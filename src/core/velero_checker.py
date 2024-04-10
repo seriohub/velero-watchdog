@@ -75,7 +75,8 @@ class VeleroChecker:
             self.last_send = calendar.timegm(datetime.today().timetuple())
             msg = ''
             if 'cluster_name' in message:
-                msg += message['cluster_name'] + '\n'
+                if message['cluster_name'] is not None:
+                    msg += message['cluster_name'] + '\n'
             if 'backups' in message:
                 msg += message['backups']
             if 'schedules' in message:
@@ -225,7 +226,7 @@ class VeleroChecker:
             return value
 
     async def __process_difference_report(self, data):
-        print("__process_difference_report")
+        self.print_helper.info("__process_difference_report")
         data = self.__pre_batch_data(data)
 
         backups = data['backups']
@@ -240,8 +241,8 @@ class VeleroChecker:
             old_backups = self.old_backup['backups']
 
         backups_diff = self.__find_dict_difference(old_backups, backups)
-        print("backups", backups)
-        print("backups_diff", backups_diff)
+        # print("backups", backups)
+        # print("backups_diff", backups_diff)
 
         backup_completed = 0
         backup_in_progress = 0

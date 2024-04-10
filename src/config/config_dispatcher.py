@@ -19,6 +19,10 @@ class ConfigDispatcher:
         self.email_sender_password = '***'
         self.email_recipient = ''
 
+        self.slack_enable = True
+        self.slack_channel = ''
+        self.slack_token = ''
+
         if cl_config is not None:
             self.__init_configuration_app__(cl_config)
 
@@ -52,6 +56,11 @@ class ConfigDispatcher:
             print(f"INFO    [Dispatcher setup] email-password={self.email_sender_password}")
             print(f"INFO    [Dispatcher setup] email-recipient={self.email_recipient}")
 
+        print(f"INFO    [Dispatcher setup] Slack={self.slack_enable}")
+        if self.telegram_enable:
+            print(f"INFO    [Dispatcher setup] slack-channel id={self.slack_channel}")
+            print(f"INFO    [Dispatcher setup] slack-token={self.__mask_data__(self.slack_token)}")
+
     def __init_configuration_app__(self, cl_config: Config):
         """
         Init configuration class reading .env file
@@ -73,6 +82,11 @@ class ConfigDispatcher:
         self.email_smtp_port = cl_config.email_smtp_port()
         self.email_smtp_server = cl_config.email_smtp_server()
         self.email_recipient = cl_config.email_recipient()
+
+        # slack
+        self.slack_enable = cl_config.slack_enable()
+        self.slack_channel = cl_config.slack_channel_id()
+        self.slack_token = cl_config.slack_token()
 
         # print
         self.__print_configuration__()
