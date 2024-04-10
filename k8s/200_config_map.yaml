@@ -22,3 +22,6 @@ data:
   EMAIL_PASSWORD: "<pwd>"
   EMAIL_RECIPIENTS: "<recipients>"
 
+  SLACK_ENABLE: "False"
+  SLACK_CHANNEL: "<channel-id>"
+  SLACK_TOKEN: "<token>"
