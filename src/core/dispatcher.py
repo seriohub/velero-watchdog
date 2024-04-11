@@ -65,12 +65,16 @@ class Dispatcher:
                 item = await self.queue.get()
                 # print(item)
                 # check for stop signal
+
                 if item is None:
+                    self.print_helper.debug(f"dispatcher new receive element: item is None")
                     break
+
                 # LS 2024.04.10 temporary limit message length
+                self.print_helper.debug(f"dispatcher new receive element {item}")
                 if len(item) < 20:
+                    self.print_helper.debug(f"dispatcher new receive len(element)<20")
                     break
-                self.print_helper.debug(f"dispatcher new receive element")
 
                 if item is not None and len(item) > 0:
                     if self.dispatcher_config.telegram_enable:
