@@ -35,9 +35,9 @@ Monitor and alert if the schedule changes.
 Receive the alerts and the solved messages via notifications channels, allowing immediate action.
 
 Available plugin:
+- Email
+- Slack
 - Telegram
-- email
-
 
 ## Requirements
 
@@ -78,8 +78,8 @@ Available plugin:
 | `NOTIFICATION_SKIP_COMPLETED`  | Bool   | True    | Skip notification new completed backup                                                                                                                    |
 | `NOTIFICATION_SKIP_INPROGRESS` | Bool   | True    | Skip notification new in progress backup                                                                                                                  |
 
-*Mandatory parameters
-** Mandatory if it is deployed on cluster
+- \* Mandatory parameters
+- \** Mandatory if it is deployed on cluster
 
 ## Installation
 
