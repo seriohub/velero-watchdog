@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.2] - 2024-04-10
+
+- Added Slack notification features
+
+
 ## [v0.1.1] - 2024-04-02
 
 - Added NOTIFICATION_SKIP_COMPLETED and NOTIFICATION_SKIP_INPROGRESS config params

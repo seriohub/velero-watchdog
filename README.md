@@ -35,9 +35,9 @@ Monitor and alert if the schedule changes.
 Receive the alerts and the solved messages via notifications channels, allowing immediate action.
 
 Available plugin:
+- Email
+- Slack
 - Telegram
-- email
-
 
 ## Requirements
 
@@ -48,35 +48,38 @@ Available plugin:
 
 ## Configuration
 
-| FIELD                                | TYPE   | DEFAULT | DESCRIPTION                                                                                                                                              |
-|--------------------------------------|--------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `DEBUG`                              | Bool   | False   | View debugging information.                                                                                                                              |
-| `LOG_SAVE`                           | Bool   | False   | Save log to files                                                                                                                                        |
-| `PROCESS_LOAD_KUBE_CONFIG`*          | Bool   | True    | Set False if it runs on k8s.                                                                                                                             |
-| `PROCESS_KUBE_CONFIG`                | String |         | Path to the kube config file. This is mandatory when the script runs outside the Kubernetes cluster, either in a docker container or as a native script. |
-| `PROCESS_CLUSTER_NAME` * **          | String |         | Force the cluster name and it appears in the message                                                                                                     |
-| `PROCESS_CYCLE_SEC`                  | Int    | 120     | Cycle time (seconds)                                                                                                                                     |
-| `TELEGRAM_ENABLE`    *               | Bool   | True    | Enable telegram notification                                                                                                                             |
-| `TELEGRAM_API_TOKEN` *               | String |         | Token for access to Telegram bot via Http API                                                                                                            |
-| `TELEGRAM_CHAT_ID`   *               | String |         | Telegram chat id where send the notifications                                                                                                            |
-| `EMAIL_ENABLE`       *               | Bool   | False   | Enable email notification                                                                                                                                |
-| `EMAIL_SMTP_SERVER`  *               | String |         | SMTP server                                                                                                                                              |
-| `EMAIL_SMTP_PORT`    *               | int    | 587     | SMTP port                                                                                                                                                |
-| `EMAIL_ACCOUNT`      *               | String |         | user name account                                                                                                                                        |
-| `EMAIL_PASSWORD`     *               | String |         | password account                                                                                                                                         |
-| `EMAIL_RECIPIENTS`   *               | Bool   |         | Email recipients                                                                                                                                         |
-| `BACKUP_ENABLE`                      | Bool   | True    | Enable watcher for backups without schedule or last backup for each schedule                                                                             |
-| `EXPIRES_DAYS_WARNING`               | int    | 10      | Number of days to backup expiration below which to display a warning about the backup                                                                    |
-| `SCHEDULE_ENABLE`                    | Bool   | True    | Enable watcher for schedule                                                                                                                              |
-| `K8S_INCLUSTER_MODE` **              | Bool   | False   | Enable in cluster mode                                                                                                                                   |
-| `IGNORE_NM_1`                        | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
-| `IGNORE_NM_2`                        | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
-| `IGNORE_NM_3`                        | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
-| `NOTIFICATION_SKIP_COMPLETED`        | Bool   | True    | Skip notification new completed backup                                                                                                                   |
-| `NOTIFICATION_SKIP_INPROGRESS`       | Bool   | True    | Skip notification new in progress backup                                                                                                                 |
+| FIELD                          | TYPE   | DEFAULT | DESCRIPTION                                                                                                                                               |
+|--------------------------------|--------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `DEBUG`                        | Bool   | False   | View debugging information.                                                                                                                               |
+| `LOG_SAVE`                     | Bool   | False   | Save log to files                                                                                                                                         |
+| `PROCESS_LOAD_KUBE_CONFIG`*    | Bool   | True    | Set False if it runs on k8s.                                                                                                                              |
+| `PROCESS_KUBE_CONFIG`          | String |         | Path to the kube config file. This is mandatory when the script runs outside the Kubernetes cluster, either in a docker container or as a native script.  |
+| `PROCESS_CLUSTER_NAME` * **    | String |         | Force the cluster name and it appears in the message                                                                                                      |
+| `PROCESS_CYCLE_SEC`            | Int    | 120     | Cycle time (seconds)                                                                                                                                      |
+| `TELEGRAM_ENABLE`    *         | Bool   | True    | Enable telegram notification                                                                                                                              |
+| `TELEGRAM_API_TOKEN` *         | String |         | Token for access to Telegram bot via Http API                                                                                                             |
+| `TELEGRAM_CHAT_ID`   *         | String |         | Telegram chat id where send the notifications                                                                                                             |
+| `EMAIL_ENABLE`       *         | Bool   | False   | Enable email notification                                                                                                                                 |
+| `EMAIL_SMTP_SERVER`  *         | String |         | SMTP server                                                                                                                                               |
+| `EMAIL_SMTP_PORT`    *         | int    | 587     | SMTP port                                                                                                                                                 |
+| `EMAIL_ACCOUNT`      *         | String |         | user name account                                                                                                                                         |
+| `EMAIL_PASSWORD`     *         | String |         | password account                                                                                                                                          |
+| `EMAIL_RECIPIENTS`   *         | Bool   |         | Email recipients                                                                                                                                          |
+| `SLACK_ENABLE`       *         | Bool   |         | Enable Slack notification                                                                                                                                 |
+| `SLACK_CHANNEL`      *         | Bool   |         | Channel id where sens the notification                                                                                                                    |
+| `SLACK_TOKEN`        *         | Bool   |         | Token for access to Slack via Http API                                                                                                                    |
+| `BACKUP_ENABLE`                | Bool   | True    | Enable watcher for backups without schedule or last backup for each schedule                                                                              |
+| `EXPIRES_DAYS_WARNING`         | int    | 10      | Number of days to backup expiration below which to display a warning about the backup                                                                     |
+| `SCHEDULE_ENABLE`              | Bool   | True    | Enable watcher for schedule                                                                                                                               |
+| `K8S_INCLUSTER_MODE` **        | Bool   | False   | Enable in cluster mode                                                                                                                                    |
+| `IGNORE_NM_1`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                      |
+| `IGNORE_NM_2`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                      |
+| `IGNORE_NM_3`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                      |
+| `NOTIFICATION_SKIP_COMPLETED`  | Bool   | True    | Skip notification new completed backup                                                                                                                    |
+| `NOTIFICATION_SKIP_INPROGRESS` | Bool   | True    | Skip notification new in progress backup                                                                                                                  |
 
-*Mandatory parameters
-** Mandatory if it is deployed on cluster
+- \* Mandatory parameters
+- \** Mandatory if it is deployed on cluster
 
 ## Installation
 
