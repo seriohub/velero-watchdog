@@ -20,7 +20,7 @@ spec:
       serviceAccountName: k8s-read-only-service-account
       containers:
         - name: velero-monitoring
-          image: dserio83/velero-watchdog:0.1.2
+          image: dserio83/velero-watchdog:dev
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
