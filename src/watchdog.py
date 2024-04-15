@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from datetime import datetime
 
 from config.config import Config
 from config.config_k8s_process import ConfigK8sProcess
@@ -36,6 +37,12 @@ class Watchdog:
         self.print_helper = PrintHelper('[common.routers.health]',
                                         level=config_app.get_internal_log_level())
 
+    @staticmethod
+    def __get_utc_datetime_string__():
+        current_utc_datetime = datetime.utcnow()
+        utc_datetime_string = current_utc_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return utc_datetime_string
+
     @handle_exceptions_async_method
     async def restart(self):
         for task in self.tasks:
@@ -47,7 +54,11 @@ class Watchdog:
         await self.queue_request.put(1)
 
     @handle_exceptions_async_method
-    async def run(self):
+    async def run(self,
+                  test_notification=False,
+                  test_email=False,
+                  test_telegram=False,
+                  test_slack=False):
         daemon = self.daemon_mode
         seconds = self.loop_seconds
         disp_class = self.clk8s_setup_disp
@@ -110,15 +121,26 @@ class Watchdog:
                 await asyncio.gather(*[t.run() for t in tasks])
                 self.tasks = tasks
             else:
-                await k8s_stat_read.run(loop=False)
-                await velero_stat_checker.run(loop=False)
+                if test_notification:
+                    self.print_helper.info(f"send test channel notification "
+                                           f"email:{test_email} telegram:{test_email} slack:{test_slack} ")
+                    await queue_dispatcher.put(f"Velero-Watchdog- This is a test message."
+                                               f"\nStart request at :{self.__get_utc_datetime_string__()}")
+                else:
+                    await k8s_stat_read.run(loop=False)
+                    await velero_stat_checker.run(loop=False)
+
                 await dispatcher_main.run(loop=False)
-                if self.config_prg.telegram_enable():
+
+                if (self.config_prg.telegram_enable() and
+                        (not test_notification or (test_notification and test_telegram))):
                     await dispatcher_telegram.run(loop=False)
-                if self.config_prg.email_enable():
+                if (self.config_prg.email_enable()
+                        and (not test_notification or (test_notification and test_email))):
                     await dispatcher_mail.run(loop=False)
                 # LS 2024.04.10 slack channel
-                if self.config_prg.slack_enable():
+                if (self.config_prg.slack_enable()
+                        and (not test_notification or (test_notification and test_slack))):
                     await dispatcher_slack.run(loop=False)
 
         except KeyboardInterrupt:

@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.3] - 2024-04-15
+
+- Added test channel notification via new endpoint
+
+
 ## [v0.1.2] - 2024-04-10
 
 - Added Slack notification features

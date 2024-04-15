@@ -37,6 +37,7 @@ Receive the alerts and the solved messages via notifications channels, allowing 
 Available plugin:
 - Telegram
 - email
+- Slack
 
 
 ## Requirements
