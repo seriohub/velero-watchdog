@@ -18,7 +18,10 @@ app.task = asyncio.create_task(app.watchdog_daemon.run())
 async def online():
     return JSONResponse(content={'status': 'alive'}, status_code=200)
 
-@app.get("/info")
+
+@app.get("/info",
+         tags=['System'],
+         summary='Get information about the system')
 async def info():
     res = {'app_name': __app_name__,
            'release_version': f"{__version__}",
@@ -28,7 +31,9 @@ async def info():
     return JSONResponse(content=response.toJSON(), status_code=200)
 
 
-@app.get("/restart")
+@app.get("/restart",
+         tags=['System'],
+         summary='Restart service')
 async def restart():
     app.task.cancel()
     app.task = asyncio.create_task(app.watchdog_daemon.run())
@@ -37,7 +42,9 @@ async def restart():
     return JSONResponse(content=response.toJSON(), status_code=200)
 
 
-@app.get("/send-report")
+@app.get("/send-report",
+         tags=['Run'],
+         summary='Send report')
 async def report():
     wd = Watchdog(daemon=False)
     await wd.run()
@@ -45,8 +52,27 @@ async def report():
     response = SuccessfulRequest(payload=res)
     return JSONResponse(content=response.toJSON(), status_code=200)
 
-@app.get("/get-config")
+
+@app.get("/get-config",
+         tags=['System'],
+         summary='Get the current configuration')
 async def get_config():
     res = configHelper.get_env_variables()
+    response = SuccessfulRequest(payload=res)
+    return JSONResponse(content=response.toJSON(), status_code=200)
+
+
+@app.get("/send-test-notification",
+         tags=['Run'],
+         summary='Send a test message to verify channel settings')
+async def send_test_notification(email: bool = True,
+                                 telegram: bool = True,
+                                 slack: bool = True):
+    wd = Watchdog(daemon=False)
+    await wd.run(test_notification=True,
+                 test_email=email,
+                 test_telegram=telegram,
+                 test_slack=slack)
+    res = {'sent': 'Done!'}
     response = SuccessfulRequest(payload=res)
     return JSONResponse(content=response.toJSON(), status_code=200)
