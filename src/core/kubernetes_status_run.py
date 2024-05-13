@@ -70,8 +70,11 @@ class KubernetesStatusRun:
                     data_res[self.k8s_config.schedule_key] = schedule_list
 
                 if self.k8s_config.backup_enable:
-                    backups_list = self.velero_stat.get_k8s_last_backup_status()
-                    data_res[self.k8s_config.backup_key] = backups_list
+                    last_backups_list = self.velero_stat.get_k8s_last_backups()
+                    data_res[self.k8s_config.backup_key] = last_backups_list
+
+                    all_backups = self.velero_stat.get_k8s_all_backups()
+                    data_res[self.k8s_config.all_backups_key] = all_backups
 
                 await self.__put_in_queue(data_res)
 

@@ -32,7 +32,7 @@ class VeleroStatus:
         self.ignored_namespace = k8s_config.ignore_namespace
 
     @handle_exceptions_method
-    def _filter_ignored_namespace(self, keys_list, regex_list):
+    def __filter_ignored_namespace(self, keys_list, regex_list):
         self.print_helper.debug('_filter_ignored_namespace...')
         # Compile regex patterns from the provided list
         compiled_regex_list = [re.compile(pattern) for pattern in regex_list]
@@ -63,7 +63,7 @@ class VeleroStatus:
         return filtered_keys
 
     @handle_exceptions_method
-    def _get_k8s_namespace(self):
+    def __get_k8s_namespace(self):
         self.print_helper.debug('_get_namespace_list...')
 
         # Get namespaces list
@@ -79,7 +79,7 @@ class VeleroStatus:
 
         # LS 2023.11.23 add ignored namespace
         if len(self.ignored_namespace) > 0:
-            namespaces = self._filter_ignored_namespace(namespaces, self.ignored_namespace)
+            namespaces = self.__filter_ignored_namespace(namespaces, self.ignored_namespace)
             ignored_nm = all_nm - len(namespaces)
         self.print_helper.debug(f'_get_namespace_list. all nm {all_nm} Ignored {ignored_nm}')
 
@@ -90,7 +90,7 @@ class VeleroStatus:
         return namespaces
 
     @handle_exceptions_method
-    def _get_k8s_last_backup_status(self, namespace='velero'):
+    def __get_k8s_last_backups(self, namespace='velero'):
 
         custom_api = self.client
 
@@ -173,7 +173,69 @@ class VeleroStatus:
         return last_backup_info
 
     @handle_exceptions_method
-    def _get_scheduled_namespaces(self):
+    def __get_k8s_all_backups(self, namespace='velero'):
+
+        custom_api = self.client
+
+        # Get schedule from velero namespace
+        group = 'velero.io'
+        version = 'v1'
+        plural = 'backups'
+        backup_list = custom_api.list_namespaced_custom_object(group, version, namespace, plural)
+        last_backup_info = OrderedDict()
+
+        for backup in backup_list.get('items', []):
+            if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+                schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
+            else:
+                schedule_name = None
+
+            nm = ''
+            if 'namespace' in backup:
+                nm = backup['namespace']
+
+            if backup['status'] != {}:
+                if 'phase' in backup['status']:
+                    phase = backup['status']['phase']
+                else:
+                    phase = ''
+                errors = backup['status'].get('errors', [])
+                warnings = backup['status'].get('warnings', [])
+                backup_name = backup['metadata']['name']
+
+                time_expires = ''
+                if 'phase' in backup['status']:
+                    time_expires = backup['status'].get('expiration', "N/A")
+                    # time_expire__str = str(time_expires)
+                    time_expire__str = str(
+                        (datetime.strptime(time_expires, '%Y-%m-%dT%H:%M:%SZ') - datetime.now()).days) + 'd'
+                else:
+                    if 'progress' in backup['status']:
+                        time_expire__str = 'in progress'
+                    else:
+                        time_expire__str = 'N/A'
+
+                if 'completionTimestamp' in backup['status']:
+                    completion_timestamp = backup['status'].get('completionTimestamp')
+                else:
+                    completion_timestamp = 'N/A'
+
+                last_backup_info[backup_name] = {
+                    'backup_name': backup_name,
+                    'phase': phase,
+                    'namespace': nm,
+                    'errors': errors,
+                    'warnings': warnings,
+                    'time_expires': time_expires,
+                    'schedule': schedule_name,
+                    'completion_timestamp': completion_timestamp,
+                    'expire': time_expire__str
+                }
+
+        return last_backup_info
+
+    @handle_exceptions_method
+    def __get_scheduled_namespaces(self):
         all_ns = []
         schedules = self.get_k8s_velero_schedules()
         for schedule in schedules:
@@ -181,37 +243,37 @@ class VeleroStatus:
         return all_ns
 
     @handle_exceptions_method
-    def _get_unscheduled_namespaces(self):
-        namespaces = self._get_k8s_namespace()
-        all_included_namespaces = self._get_scheduled_namespaces()
+    def __get_unscheduled_namespaces(self):
+        namespaces = self.__get_k8s_namespace()
+        all_included_namespaces = self.__get_scheduled_namespaces()
 
         difference = list(set(namespaces) - set(all_included_namespaces))
         difference.sort()
         return difference, len(difference), len(namespaces)
 
-    @handle_exceptions_method
-    def _get_backup_error_message(self, message):
-        if message == '[]':
-            return ''
-        else:
-            return f'{message}'
+    #@handle_exceptions_method
+    # def __get_backup_error_message(self, message):
+    #     if message == '[]':
+    #         return ''
+    #     else:
+    #         return f'{message}'
+
+    # @handle_exceptions_method
+    # def __extract_days_from_str(self, str_number):
+    #     value = -1
+    #
+    #     index = str_number.find('d')
+    #
+    #     if index != -1:
+    #         value = int(str_number.strip()[:index])
+    #
+    #     if value > 0:
+    #         return value
+    #     else:
+    #         return None
 
     @handle_exceptions_method
-    def _extract_days_from_str(self, str_number):
-        value = -1
-
-        index = str_number.find('d')
-
-        if index != -1:
-            value = int(str_number.strip()[:index])
-
-        if value > 0:
-            return value
-        else:
-            return None
-
-    @handle_exceptions_method
-    def _extract_resources_from_schedule(self, schedule):
+    def __extract_resources_from_schedule(self, schedule):
         try:
             schedule_name = schedule['metadata']['name']
             included_namespaces = []
@@ -246,7 +308,7 @@ class VeleroStatus:
                 included_namespaces, \
                 included_resources, \
                 default_volumes_to_fs_backup, \
-                cron_time = self._extract_resources_from_schedule(schedule)
+                cron_time = self.__extract_resources_from_schedule(schedule)
             schedules[schedule_name] = {
                 'included_namespaces': included_namespaces,
                 'included_resources': included_resources,
@@ -256,13 +318,18 @@ class VeleroStatus:
         return schedules
 
     @handle_exceptions_method
-    def get_k8s_last_backup_status(self, namespace='velero'):
-        backups = self._get_k8s_last_backup_status(namespace=namespace)
-        difference, counter, counter_all = self._get_unscheduled_namespaces()
+    def get_k8s_last_backups(self, namespace='velero'):
+        backups = self.__get_k8s_last_backups(namespace=namespace)
+        difference, counter, counter_all = self.__get_unscheduled_namespaces()
 
         unscheduled = {'difference': difference,
                        'counter': counter,
                        'counter_all': counter_all}
         data = {'backups': backups, 'us_ns': unscheduled}
 
+        return data
+
+    def get_k8s_all_backups(self, namespace='velero'):
+        backups = self.__get_k8s_all_backups(namespace=namespace)
+        data = {'backups': backups}
         return data
