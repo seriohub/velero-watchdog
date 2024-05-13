@@ -11,6 +11,7 @@ class ConfigK8sProcess:
 
         self.backup_enable = True
         self.backup_key = 'backup'
+        self.all_backups_key = 'all_backups'
 
         self.schedule_enable = True
         self.schedule_key = 'schedule'

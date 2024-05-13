@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.4] - 2024-04-24
+
+- Improved messages
+- Added NOTIFICATION_SKIP_REMOVED config params
+
+
 ## [v0.1.3] - 2024-04-24
 
 - Added test channel notification via new endpoint
@@ -27,9 +33,11 @@ All notable changes to this project will be documented in this file.
 
 ### First Release
 
-v0.1.3: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.3](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.1)
+v0.1.4: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.4](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.4)
 
-v0.1.2: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.2](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.1)
+v0.1.3: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.3](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.3)
+
+v0.1.2: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.2](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.2)
 
 v0.1.1: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.1](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.1)
 

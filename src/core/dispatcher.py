@@ -72,9 +72,9 @@ class Dispatcher:
 
                 # LS 2024.04.10 temporary limit message length
                 self.print_helper.debug(f"dispatcher new receive element {item}")
-                if len(item) < 20:
-                    self.print_helper.debug(f"dispatcher new receive len(element)<20")
-                    break
+                # if len(item) < 20:
+                #     self.print_helper.debug(f"dispatcher new receive len(element)<20 item: {str(item)}")
+                #     break
 
                 if item is not None and len(item) > 0:
                     if self.dispatcher_config.telegram_enable:

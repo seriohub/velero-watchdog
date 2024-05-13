@@ -10,7 +10,8 @@ class Config:
     def __init__(self, path_env=None):
         load_dotenv(dotenv_path=path_env)
 
-    def load_key(self, key, default, print_out: bool = True, mask_value: bool = False):
+    @staticmethod
+    def load_key(key, default, print_out: bool = True, mask_value: bool = False):
         value = os.getenv(key)
         if value is None or \
                 len(value) == 0:
@@ -251,6 +252,7 @@ class Config:
 
         return "info"
 
+    @staticmethod
     def get_env_variables(self):
         data = dotenv_values(find_dotenv())
         kv = {}
@@ -268,4 +270,8 @@ class Config:
 
     def get_notification_skip_inprogress(self):
         res = self.load_key('NOTIFICATION_SKIP_INPROGRESS', 'True')
+        return True if res.lower() == "true" or res.lower() == "1" else False
+
+    def get_notification_skip_removed(self):
+        res = self.load_key('NOTIFICATION_SKIP_REMOVED', 'True')
         return True if res.lower() == "true" or res.lower() == "1" else False
