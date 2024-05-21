@@ -2,7 +2,6 @@ import re
 from datetime import datetime
 from kubernetes import client, config
 from collections import OrderedDict
-
 from config.config import Config
 
 from utils.printer import PrintHelper
@@ -21,6 +20,7 @@ class VeleroStatus:
 
         self.print_helper.debug(f"__init__")
 
+        self.k8s_config = k8s_config
         if k8s_config.k8s_in_cluster_mode:
             config.load_incluster_config()
         else:
@@ -104,13 +104,13 @@ class VeleroStatus:
 
         # Extract last backup for every schedule
         for backup in backup_list.get('items', []):
-            if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+            try:
+            # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
                 schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
-            else:
+            # else:
+            except:
                 schedule_name = None
 
-            # print(f'***\n{backup}\n*****\n')
-            # LS 2023.11.26 add namespace
             nm = ''
             if 'namespace' in backup:
                 nm = backup['namespace']
@@ -185,9 +185,12 @@ class VeleroStatus:
         last_backup_info = OrderedDict()
 
         for backup in backup_list.get('items', []):
-            if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+            try:
+            # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
                 schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
-            else:
+            # else:
+            #    schedule_name = None
+            except:
                 schedule_name = None
 
             nm = ''
@@ -251,27 +254,6 @@ class VeleroStatus:
         difference.sort()
         return difference, len(difference), len(namespaces)
 
-    #@handle_exceptions_method
-    # def __get_backup_error_message(self, message):
-    #     if message == '[]':
-    #         return ''
-    #     else:
-    #         return f'{message}'
-
-    # @handle_exceptions_method
-    # def __extract_days_from_str(self, str_number):
-    #     value = -1
-    #
-    #     index = str_number.find('d')
-    #
-    #     if index != -1:
-    #         value = int(str_number.strip()[:index])
-    #
-    #     if value > 0:
-    #         return value
-    #     else:
-    #         return None
-
     @handle_exceptions_method
     def __extract_resources_from_schedule(self, schedule):
         try:
@@ -318,18 +300,25 @@ class VeleroStatus:
         return schedules
 
     @handle_exceptions_method
-    def get_k8s_last_backups(self, namespace='velero'):
-        backups = self.__get_k8s_last_backups(namespace=namespace)
+    def get_unscheduled_namaspace(self, namespace='velero'):
         difference, counter, counter_all = self.__get_unscheduled_namespaces()
 
         unscheduled = {'difference': difference,
                        'counter': counter,
                        'counter_all': counter_all}
-        data = {'backups': backups, 'us_ns': unscheduled}
+        data = {self.k8s_config.unschedule_namespace_key: unscheduled}
+
+        return data
+
+    @handle_exceptions_method
+    def get_k8s_last_backups(self, namespace='velero'):
+        backups = self.__get_k8s_last_backups(namespace=namespace)
+
+        data = {self.k8s_config.backups_key: backups}
 
         return data
 
     def get_k8s_all_backups(self, namespace='velero'):
         backups = self.__get_k8s_all_backups(namespace=namespace)
-        data = {'backups': backups}
+        data = {self.k8s_config.all_backups_key: backups}
         return data

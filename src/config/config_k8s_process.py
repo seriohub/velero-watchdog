@@ -10,11 +10,13 @@ class ConfigK8sProcess:
         self.cluster_name_key = 'cluster'
 
         self.backup_enable = True
-        self.backup_key = 'backup'
-        self.all_backups_key = 'all_backups'
+        self.backups_key = 'last_backups'  # last and one time backups
+        self.all_backups_key = 'backups'
+
+        self.unschedule_namespace_key = 'un_ns'
 
         self.schedule_enable = True
-        self.schedule_key = 'schedule'
+        self.schedules_key = 'schedules'
 
         self.disp_msg_key_unique = True  # Fixed True
         self.disp_msg_key_start = 'msg_key_start'

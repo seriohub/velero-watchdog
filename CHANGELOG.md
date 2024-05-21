@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.5] - 2024-05-21
+
+- Improved messages
+- Several improvements
+- Added NOTIFICATION_SKIP_DELETING config params
+- Added REPORT_BACKUP_ITEM_PREFIX config params
+- Added REPORT_SCHEDULE_ITEM_PREFIX config params
+
+
 ## [v0.1.4] - 2024-04-24
 
 - Improved messages

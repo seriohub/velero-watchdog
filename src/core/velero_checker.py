@@ -35,8 +35,7 @@ class VeleroChecker:
         if k8s_key_config is not None:
             self.k8s_config = k8s_key_config
 
-        self.old_schedule_status = {}
-        self.old_backup = {}
+        self.old_data = {}
 
         self.alive_message_seconds = dispatcher_alive_message_hours * 3600
         self.last_send = calendar.timegm(datetime.today().timetuple())
@@ -51,24 +50,44 @@ class VeleroChecker:
         self.first_run = True
 
     @staticmethod
-    def __find_dict_difference(dict1, dict2):
+    def get_changed_keys(old, new, skip_fields):
+        changed = []
+
+        for backup in old:
+            if backup in new:
+                for key in old[backup]:
+                    if key in skip_fields:
+                        continue
+                    elif old[backup][key] != new[backup][key]:
+                        changed.append(backup)
+                        break
+
+        return changed
+
+    def __find_dict_difference(self, old_dict, new_dict):
         # Find keys that are unique to each dictionary
-        keys_only_in_dict1 = set(dict1.keys()) - set(dict2.keys())
-        keys_only_in_dict2 = set(dict2.keys()) - set(dict1.keys())
+        keys_only_in_old_dict = set(old_dict.keys()) - set(new_dict.keys())
+        keys_only_in_new_dict = set(new_dict.keys()) - set(old_dict.keys())
+
+        # Check old_dict and new_dict is dict
+        if not isinstance(old_dict, dict) or not isinstance(new_dict, dict):
+            raise ValueError("old_dict or new_dict is not dict.")
 
         # Find keys that are common to both dictionaries but have different values
-        differing_keys = [key for key in dict1 if key in dict2 and dict1[key] != dict2[key]]
+        skip_field = ['expire', 'time_expires']
+        changed_keys = self.get_changed_keys(old_dict, new_dict, skip_field)
 
         # Create dictionaries containing the differing key-value pairs
-        differing_dict1 = {key: dict1[key] for key in differing_keys}
-        differing_dict2 = {key: dict2[key] for key in differing_keys}
+        old_values = {key: old_dict[key] for key in changed_keys}
+        new_values = {key: new_dict[key] for key in changed_keys}
 
         return {
-            "removed": list(keys_only_in_dict1),
-            "added": list(keys_only_in_dict2),
-            "changed": list(differing_dict1.keys()),
-            "old_values": differing_dict1,
-            "new_values": differing_dict2,
+            "has_diff": len(changed_keys) > 0 or len(list(keys_only_in_old_dict)) > 0 or len(list(keys_only_in_new_dict)) > 0,
+            "removed": list(keys_only_in_old_dict),
+            "added": list(keys_only_in_new_dict),
+            "changed": changed_keys,    # list(differing_dict1.keys()),
+            "old_values": old_values,
+            "new_values": new_values,
         }
 
     @handle_exceptions_async_method
@@ -113,30 +132,31 @@ class VeleroChecker:
         self.print_helper.debug("__unpack_data")
         try:
             if isinstance(data, dict):
-
                 cluster_name = await self.__process_cluster_name(data)
 
-                schedules = await self.__process_schedule_report(data[self.k8s_config.schedule_key])
+                schedules: dict[str, str] | None = None
+                backups: dict[str, str] | None = None
 
                 if self.first_run:
-                    backups = await self.__process_backups_report(data[self.k8s_config.backup_key])
+                    backups = await self.__process_backups_report(data)
                 else:
-                    # backups = await self.__process_difference_report(data[self.k8s_config.backup_key])
-                    backups = await self.__process_backups_difference_report(data['all_backups'])
+                    schedules = await self.__process_schedule_difference_report(data)
+                    backups = await self.__process_backups_difference_report(data)
 
-                # self.old_backup = data[self.k8s_config.backup_key]
-                self.old_backup = data['all_backups']
+                self.old_data = data
+
+                has_diff = False
 
                 messages = dict(cluster_name)
-                has_diff = False
                 if isinstance(schedules, dict) and len(schedules) > 0:
                     has_diff = True
                     messages.update(schedules)
-                if self.first_run or (isinstance(backups, dict) and len(backups) > 0):
+
+                if isinstance(backups, dict) and len(backups) > 0 and backups is not None:
                     has_diff = True
                     messages.update(backups)
 
-                if has_diff:
+                if has_diff or self.first_run:
                     await self.__send_to_dispatcher(messages)
 
             else:
@@ -183,67 +203,44 @@ class VeleroChecker:
         self.print_helper.info("__last_backup_report")
         try:
 
-            backups = data['backups']
-            unscheduled = data['us_ns']
-
-            if self.old_backup == data:
-                self.print_helper.info("__last_backup_report. do nothing same data")
-                return
-
-            old_backups = {}
-            old_unscheduled = {}
-
-            if len(self.old_backup) > 0:
-                old_backups = self.old_backup['backups']
-                old_unscheduled = self.old_backup['us_ns']
-
-            # print difference in stdout
-            if backups != old_backups:
-                self.print_helper.info("__last_backup_report. backup status changed")
-                # print difference
-                if len(old_backups) > 0:
-                    diff = self.__find_dict_difference(old_backups, backups)
-                    self.print_helper.info(f'Difference in backups : {diff}')
-                else:
-                    self.print_helper.info("__last_backup_report. backup status changed. no old value set")
-
-            if unscheduled != old_unscheduled:
-                self.print_helper.info("__last_backup_report. unscheduled namespaces status changed")
-                if len(old_unscheduled) > 0:
-                    diff = self.__find_dict_difference(old_unscheduled, unscheduled)
-                    self.print_helper.info(f'Difference in schedules : {diff}')
-                else:
-                    self.print_helper.info("__last_backup_report. unscheduled status changed. no old value set")
+            backups = data[self.k8s_config.backups_key]
+            unscheduled = data[self.k8s_config.unschedule_namespace_key]
 
             # build message for dispatch
 
             # counter
             backup_count = len(backups)
             backup_completed = 0
+
             backup_in_progress = 0
             backup_failed = 0
             backup_partially_failed = 0
             backup_in_errors = 0
             backup_in_wrn = 0
             expired_backup = 0
+            backup_failed_validation = 0
+
             backup_not_retrieved = 0
 
             # message strings
             message = ''
             message_header = ''
             message_body = ''
+
             backup_in_progress_str = ''
-            error_str = ''
-            wrn_str = ''
             backup_failed_str = ''
             backup_partially_failed_str = ''
+            error_str = ''
+            wrn_str = ''
             backup_expired_str = ''
+            backup_failed_validation_str = ''
 
             # point = '\u2022'
-            point = '-'
+            point = '    •'
+            list_point = '        ‣ '
 
             for backup_name, backup_info in backups.items():
-                self.print_helper.debug(f'Backup schedule: {backup_name}')
+                self.print_helper.debug(f'Backup name: {backup_name}')
 
                 if backup_name != "error" or 'schedule' in backup_info:
 
@@ -254,32 +251,35 @@ class VeleroChecker:
                             backup_not_retrieved += 1
                         elif day < self.k8s_config.EXPIRES_DAYS_WARNING:
                             expired_backup += 1
-                            backup_expired_str += f'\n\t    - {str(backup_name)}'
+                            backup_expired_str += f'\n{list_point}{str(backup_name)}'
 
                     # add status field
                     if len(backup_info['phase']) > 0:
                         if backup_info['phase'].lower() == 'completed':
                             backup_completed += 1
                         elif backup_info['phase'].lower() == 'inprogress':
-                            backup_in_progress_str += f'\n    - {str(backup_name)}'
+                            backup_in_progress_str += f'\n{list_point}{str(backup_name)}'
                             backup_in_progress += 1
+                        elif backup_info['phase'].lower() == 'failedvalidation':
+                            backup_failed_validation_str += f'\n{list_point}{str(backup_name)}'
+                            backup_failed_validation += 1
                         elif backup_info['phase'].lower() == 'failed':
-                            backup_failed_str += f'\n    - {str(backup_name)}'
+                            backup_failed_str += f'\n{list_point}{str(backup_name)}'
                             backup_failed += 1
                         elif backup_info['phase'].lower() == 'partiallyfailed':
-                            backup_partially_failed_str += f'\n    - {str(backup_name)}'
+                            backup_partially_failed_str += f'\n{list_point}{str(backup_name)}'
                             backup_partially_failed += 1
 
                     # add error field
                     error = self.__get_backup_error_message(str(backup_info['errors']))
                     if len(error) > 0:
-                        error_str += f'\t- {str(backup_name)}'
+                        error_str += f'\n{list_point}{str(backup_name)}'
                         backup_in_errors += 1
 
                     # add warning field
                     wrn = self.__get_backup_error_message(str(backup_info['warnings']))
                     if len(wrn) > 0:
-                        wrn_str += f'\t- {str(backup_name)}'
+                        wrn_str += f'\n{list_point}{str(backup_name)}'
                         backup_in_wrn += 1
             # end stats
 
@@ -291,31 +291,33 @@ class VeleroChecker:
                                f'\n{point} completed={backup_completed}')
 
             if backup_in_progress > 0:
-                message_header += f'\n{point} in Progress={backup_in_progress}\n{backup_in_progress_str}'
+                message_header += f'\n{point} in progress={backup_in_progress}{backup_in_progress_str}'
+            if backup_failed_validation > 0:
+                message_body += f'\n{point} failed validation={backup_failed}{backup_failed_validation_str}'
             if backup_in_errors > 0:
-                message_body += f'\n{point} with Errors={backup_in_errors}\n{error_str}'
+                message_body += f'\n{point} with errors={backup_in_errors}{error_str}'
             if backup_in_wrn > 0:
-                message_body += f'\n{point} with Warnings={backup_in_wrn}\n{wrn_str}'
+                message_body += f'\n{point} with warnings={backup_in_wrn}{wrn_str}'
             if backup_failed > 0:
                 message_body += f'\n{point} failed={backup_failed}{backup_failed_str}'
             if backup_partially_failed > 0:
                 message_body += f'\n{point} partially Failed={backup_partially_failed}{backup_partially_failed_str}'
             if expired_backup > 0:
                 message_body += (f'\n{point} in warning period={expired_backup} '
-                                 f'[expires day less than {self.k8s_config.EXPIRES_DAYS_WARNING}d]'
+                                 f'(expires day less than {self.k8s_config.EXPIRES_DAYS_WARNING}d)'
                                  f'{backup_expired_str}')
 
             # build unscheduled namespaces string
             if len(unscheduled) > 0:
                 str_namespace = ''
                 for name_s in unscheduled['difference']:
-                    str_namespace += f'\t    - {name_s}\n'
+                    str_namespace += f'{list_point}{name_s}\n'
                 if len(str_namespace) > 0:
                     message = (
-                        f'\n\nNamespace without active backup [{unscheduled["counter"]}/{unscheduled["counter_all"]}]'
+                        f'\n\nNamespace without active backup ({unscheduled["counter"]}/{unscheduled["counter_all"]})'
                         f':\n{str_namespace}')
 
-            if len(self.old_backup) == 0:
+            if len(self.old_data) == 0:
                 return {'backups':  f"{message_header}{message_body}{message}"}
             else:
                 return {'backups':  message_body}
@@ -324,135 +326,103 @@ class VeleroChecker:
             self.print_helper.error_and_exception(f"__last_backup_report", err)
 
     async def __process_backups_difference_report(self, data):
-        self.print_helper.info("__process_difference_report")
+        self.print_helper.info("__process_backups_difference_report")
 
-        backups = data['backups']
+        backups = data[self.k8s_config.all_backups_key]
 
-        if self.old_backup == data:
-            self.print_helper.info("__process_difference_report. do nothing same data")
+        if self.old_data[self.k8s_config.all_backups_key] == data[self.k8s_config.all_backups_key]:
+            self.print_helper.info("__process_backups_difference_report. do nothing same data")
             return
 
-        old_backups = {}
+        backups_diff = self.__find_dict_difference(self.old_data[self.k8s_config.all_backups_key], backups)
 
-        if len(self.old_backup) > 0:
-            old_backups = self.old_backup['backups']
+        if backups_diff['has_diff']:
+            backup_messages = []
 
-        backups_diff = self.__find_dict_difference(old_backups, backups)
+            for backup_name in (backups_diff['added'] + backups_diff['changed']):
+                backup_info = backups[backup_name]
+                message = ''
+                if 'phase' not in backup_info or ('phase' in backup_info and len(backup_info['phase']) == 0):
+                    self.print_helper.error(f'{backup_info["phase"]}: missing phase, maybe waiting for startup')
+                elif len(backup_info['phase']) > 0:
+                    self.print_helper.debug(f'backup_name: {backup_name} Phase: {backup_info["phase"].lower()}')
 
-        backup_completed = 0
-        backup_in_progress = 0
-        backup_failed = 0
-        backup_partially_failed = 0
-        backup_in_errors = 0
-        backup_in_wrn = 0
-        backup_removed = 0
+                    error = self.__get_backup_error_message(str(backup_info['errors']))
+                    wrn = self.__get_backup_error_message(str(backup_info['warnings']))
 
-        message_body = ''
-        backup_in_progress_str = ''
-        error_str = ''
-        wrn_str = ''
-        backup_failed_str = ''
-        backup_partially_failed_str = ''
-        backup_completed_str = ''
-        backup_removed_str = ''
+                    if (not config_app.get_notification_skip_completed() or len(error) > 0 or len(wrn) > 0) and backup_info['phase'].lower() == 'completed':
+                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} completed'
 
-        # point = '\u2022'
-        point = '-'
+                    elif not config_app.get_notification_skip_inprogress() and backup_info['phase'].lower() == 'inprogress':
+                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} in progress'
 
-        for backup_name in (backups_diff['added'] + backups_diff['changed']):
-            backup_info = backups[backup_name]
-            if len(backup_info['phase']) == 0:
-                self.print_helper.error(len(backup_info['phase']))
-                self.print_helper.error(backup_info['phase'])
-            if len(backup_info['phase']) > 0:
-                if not config_app.get_notification_skip_completed() and backup_info['phase'].lower() == 'completed':
-                    backup_completed += 1
-                    backup_completed_str += f'\n\tVelero backup {str(backup_name)} completed'
+                    elif not config_app.get_notification_skip_deleting() and backup_info['phase'].lower() == 'deleting':
+                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} deleting'
 
-                elif not config_app.get_notification_skip_inprogress() and backup_info['phase'].lower() == 'inprogress':
-                    backup_in_progress_str += f'\n\tVelero backup {str(backup_name)} in progress'
-                    backup_in_progress += 1
+                    elif backup_info['phase'].lower() == 'failed':
+                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} failed'
 
-                elif backup_info['phase'].lower() == 'failed':
-                    backup_failed_str += f'\n\tVelero backup {str(backup_name)} failed'
-                    backup_failed += 1
+                    elif backup_info['phase'].lower() == 'partiallyfailed':
+                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} partially failed'
 
-                elif backup_info['phase'].lower() == 'partiallyfailed':
-                    backup_partially_failed_str += f'\n\tVelero backup {str(backup_name)} partially failed'
-                    backup_partially_failed += 1
+                    elif backup_info['phase'].lower() not in ['completed', 'inprogress', 'deleting', 'failed', 'partiallyfailed']:
+                        message += f"{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} {backup_info['phase'].lower()}"
 
-                else:
-                    backup_in_progress_str += f"\n\tVelero backup {str(backup_name)} {backup_info['phase'].lower()}"
-                    backup_in_progress += 1
+                    # add error field
+                    if backup_info['phase'].lower() in ['completed', 'failed', 'partiallyfailed']:
+                        if len(error) > 0:
+                            message += f' with errors'
 
-                # add error field
-                error = self.__get_backup_error_message(str(backup_info['errors']))
-                if len(error) > 0:
-                    error_str += f'\tVelero backup {str(backup_name)} has errors'
-                    backup_in_errors += 1
+                        # add warning field
+                        if len(wrn) > 0:
+                            message += f' with warnings'
 
-                # add warning field
-                wrn = self.__get_backup_error_message(str(backup_info['warnings']))
-                if len(wrn) > 0:
-                    wrn_str += f'\tVelero backup {str(backup_name)} has warnings'
-                    backup_in_wrn += 1
+                if message != '':
+                    backup_messages.append(message)
+            # end for
 
-        if not config_app.get_notification_skip_removed():
-            for backup_name in backups_diff['removed']:
-                backup_removed += 1
-                backup_removed_str += f'\n\tVelero backup {str(backup_name)} removed'
+            if not config_app.get_notification_skip_removed():
+                for backup_name in backups_diff['removed']:
+                    message = f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} removed'
+                    backup_messages.append(message)
 
-        # end stats
-        if backup_completed > 0:
-            message_body += f'\n{point} Backups completed={backup_completed}{backup_completed_str}'
-        if backup_removed > 0:
-            message_body += f'\n{point} Backups removed§={backup_removed}{backup_removed_str}'
-        if backup_in_progress > 0:
-            message_body += f'\n{point} Backups in progress={backup_in_progress}{backup_in_progress_str}'
-        if backup_in_errors > 0:
-            message_body += f'\n{point} Backups with errors={backup_in_errors}\n{error_str}'
-        if backup_in_wrn > 0:
-            message_body += f'\n{point} Backups with warnings={backup_in_wrn}\n{wrn_str}'
-        if backup_failed > 0:
-            message_body += f'\n{point} Backups failed={backup_failed}{backup_failed_str}'
-        if backup_partially_failed > 0:
-            message_body += f'\n{point} Backups partially failed={backup_partially_failed}{backup_partially_failed_str}'
+            if len(backup_messages) > 0:
+                return {'backups': '\n'.join(backup_messages[::-1])}
+            return None
 
-        return {'backups': message_body}
-
-    async def __process_schedule_report(self, data):
-        self.print_helper.info("__process_schedule_report")
+    async def __process_schedule_difference_report(self, data):
+        self.print_helper.info("__process_schedule_difference_report")
 
         try:
-            if self.old_schedule_status == data:
-                self.print_helper.info("__process_schedule_report. do nothing same data")
+            if self.old_data[self.k8s_config.schedules_key] == data[self.k8s_config.schedules_key]:
+                self.print_helper.info("__process_schedule_difference_report. do nothing same data")
                 return
-            message = ''
-            diff = self.__find_dict_difference(self.old_schedule_status, data)
+
+            schedule_messages = []
+            diff = self.__find_dict_difference(self.old_data[self.k8s_config.schedules_key], data[self.k8s_config.schedules_key])
 
             if len(diff) > 0:
                 if len(diff['removed']) > 0:
                     for rem in diff['removed']:
-                        message += f"\nVelero scheduled {rem} removed"
+                        schedule_messages.append(f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {rem} removed')
 
-                if len(self.old_schedule_status) > 0 and len(diff['added']) > 0:
+                if len(self.old_data[self.k8s_config.schedules_key]) > 0 and len(diff['added']) > 0:
                     for add in diff['added']:
-                        message += f"\nVelero scheduled {add} added"
+                        schedule_messages.append(f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {add} added')
 
                 if len(diff['old_values']) > 0:
                     for schedule_name in diff['old_values']:
-                        message += f"\nVelero scheduled {schedule_name} updated:"
+                        message = f"{config_app.get_report_schedule_item_prefix()}Velero scheduled {schedule_name} updated:"
                         for field in diff['old_values'][schedule_name]:
                             if diff['old_values'][schedule_name][field] != diff['new_values'][schedule_name][field]:
                                 message += (f"\n{field} from {diff['old_values'][schedule_name][field]} "
                                             f"to {diff['new_values'][schedule_name][field]}")
+                        schedule_messages.append(message)
 
-            self.old_schedule_status = data
-
-            return {'schedules': message}
+            return {'schedules': '\n'.join(schedule_messages[::-1])}
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"__process_schedule_report", err)
+            self.print_helper.error_and_exception(f"__process_schedule_difference_report", err)
 
     @handle_exceptions_async_method
     async def send_active_configuration(self, sub_title=None):
