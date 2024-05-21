@@ -65,16 +65,20 @@ class KubernetesStatusRun:
             try:
                 self.print_helper.info(f"self.cycle_seconds {self.cycle_seconds}")
                 data_res = {self.k8s_config.cluster_name_key: cluster_name}
+
                 if self.k8s_config.schedule_enable:
                     schedule_list = self.velero_stat.get_k8s_velero_schedules()
-                    data_res[self.k8s_config.schedule_key] = schedule_list
+                    data_res[self.k8s_config.schedules_key] = schedule_list
 
                 if self.k8s_config.backup_enable:
                     last_backups_list = self.velero_stat.get_k8s_last_backups()
-                    data_res[self.k8s_config.backup_key] = last_backups_list
+                    data_res[self.k8s_config.backups_key] = last_backups_list[self.k8s_config.backups_key]
+
+                    unscheduled_namespace = self.velero_stat.get_unscheduled_namaspace()
+                    data_res[self.k8s_config.unschedule_namespace_key] = unscheduled_namespace[self.k8s_config.unschedule_namespace_key]
 
                     all_backups = self.velero_stat.get_k8s_all_backups()
-                    data_res[self.k8s_config.all_backups_key] = all_backups
+                    data_res[self.k8s_config.all_backups_key] = all_backups[self.k8s_config.all_backups_key]
 
                 await self.__put_in_queue(data_res)
 

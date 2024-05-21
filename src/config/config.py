@@ -253,7 +253,7 @@ class Config:
         return "info"
 
     @staticmethod
-    def get_env_variables(self):
+    def get_env_variables():
         data = dotenv_values(find_dotenv())
         kv = {}
         for k, v in data.items():
@@ -275,3 +275,15 @@ class Config:
     def get_notification_skip_removed(self):
         res = self.load_key('NOTIFICATION_SKIP_REMOVED', 'True')
         return True if res.lower() == "true" or res.lower() == "1" else False
+
+    def get_notification_skip_deleting(self):
+        res = self.load_key('NOTIFICATION_SKIP_DELETING', 'True')
+        return True if res.lower() == "true" or res.lower() == "1" else False
+
+    def get_report_backup_item_prefix(self):
+        res = self.load_key('REPORT_BACKUP_ITEM_PREFIX', '')
+        return res if res.lower() == '' else res + ' '
+
+    def get_report_schedule_item_prefix(self):
+        res = self.load_key('REPORT_SCHEDULE_ITEM_PREFIX', '')
+        return res if res.lower() == '' else res + ' '
