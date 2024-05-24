@@ -287,3 +287,7 @@ class Config:
     def get_report_schedule_item_prefix(self):
         res = self.load_key('REPORT_SCHEDULE_ITEM_PREFIX', '')
         return res if res.lower() == '' else res + ' '
+
+    @staticmethod
+    def get_k8s_velero_namespace():
+        return os.getenv('K8S_VELERO_NAMESPACE', 'velero')

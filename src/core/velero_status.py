@@ -240,7 +240,7 @@ class VeleroStatus:
     @handle_exceptions_method
     def __get_scheduled_namespaces(self):
         all_ns = []
-        schedules = self.get_k8s_velero_schedules()
+        schedules = self.get_k8s_velero_schedules(namespace=config_app.get_k8s_velero_namespace())
         for schedule in schedules:
             all_ns = all_ns + schedules[schedule]['included_namespaces']
         return all_ns
