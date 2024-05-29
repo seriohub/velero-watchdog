@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.6] - 2024-05-29
+ 
+- Fixed the issue when Velero is deployed in a namespace with a name different than "velero"
+- Added K8S_VELERO_NAMESPACE config params
+
 ## [v0.1.5] - 2024-05-21
 
 - Improved messages
@@ -41,6 +46,10 @@ All notable changes to this project will be documented in this file.
 ***
 
 ### First Release
+
+v0.1.6: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6)
+
+v0.1.5: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.5](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.5)
 
 v0.1.4: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.4](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.4)
 
