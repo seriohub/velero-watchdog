@@ -67,17 +67,17 @@ class KubernetesStatusRun:
                 data_res = {self.k8s_config.cluster_name_key: cluster_name}
 
                 if self.k8s_config.schedule_enable:
-                    schedule_list = self.velero_stat.get_k8s_velero_schedules()
+                    schedule_list = self.velero_stat.get_k8s_velero_schedules(namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.schedules_key] = schedule_list
 
                 if self.k8s_config.backup_enable:
-                    last_backups_list = self.velero_stat.get_k8s_last_backups()
+                    last_backups_list = self.velero_stat.get_k8s_last_backups(namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.backups_key] = last_backups_list[self.k8s_config.backups_key]
 
-                    unscheduled_namespace = self.velero_stat.get_unscheduled_namaspace()
+                    unscheduled_namespace = self.velero_stat.get_unscheduled_namaspace(namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.unschedule_namespace_key] = unscheduled_namespace[self.k8s_config.unschedule_namespace_key]
 
-                    all_backups = self.velero_stat.get_k8s_all_backups()
+                    all_backups = self.velero_stat.get_k8s_all_backups(namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.all_backups_key] = all_backups[self.k8s_config.all_backups_key]
 
                 await self.__put_in_queue(data_res)
