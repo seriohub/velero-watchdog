@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 ***
@@ -44,6 +45,8 @@ All notable changes to this project will be documented in this file.
 
 
 ***
+
+## Tags
 
 v0.1.6: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6)
 
