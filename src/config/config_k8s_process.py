@@ -6,7 +6,7 @@ class ConfigK8sProcess:
         self.k8s_in_cluster_mode = True
         self.k8s_config_file = None
 
-        self.cluster_name = None
+        self.cluster_id = None
         self.cluster_name_key = 'cluster'
 
         self.backup_enable = True
@@ -32,15 +32,15 @@ class ConfigK8sProcess:
         """
         Print setup class
         """
-        print(f"INFO    [Process setup] k8s cluster name= {self.cluster_name}")
+        print(f"ConfigK8s cluster name= {self.cluster_id}")
 
-        print(f"INFO    [Process setup] k8s in cluster mode={self.k8s_in_cluster_mode}")
-        print(f"INFO    [Process setup] k8s config file={self.k8s_config_file}")
-        print(f"INFO    [Process setup] velero backup enable={self.backup_enable}")
-        print(f"INFO    [Process setup] velero schedule enable={self.schedule_enable}")
-        print(f"INFO    [Process setup] k8s send summary message={self.disp_msg_key_unique}")
+        print(f"ConfigK8s in cluster mode={self.k8s_in_cluster_mode}")
+        print(f"ConfigK8s config file={self.k8s_config_file}")
+        print(f"ConfigK8s velero backup enable={self.backup_enable}")
+        print(f"ConfigK8s velero schedule enable={self.schedule_enable}")
+        print(f"ConfigK8s k8s send summary message={self.disp_msg_key_unique}")
 
-        print(f"INFO    [Process setup] k8s ignored namespaces: regex defined {len(self.ignore_namespace)}")
+        print(f"ConfigK8s k8s ignored namespaces: regex defined {len(self.ignore_namespace)}")
 
     def __init_configuration_app__(self, cl_config: Config):
         """
@@ -48,12 +48,10 @@ class ConfigK8sProcess:
         """
         self.backup_enable = cl_config.velero_backup_enable()
         self.schedule_enable = cl_config.velero_schedule_enable()
-        self.EXPIRES_DAYS_WARNING = cl_config.velero_expired_days_warning()
-        self.cluster_name = cl_config.k8s_cluster_identification()
+        self.expires_days_warning = cl_config.velero_expired_days_warning()
+        self.cluster_id = cl_config.k8s_cluster_identification()
         self.k8s_in_cluster_mode = cl_config.k8s_incluster_mode()
         self.k8s_config_file = cl_config.k8s_config_file()
-
-        # LS 2023.11.23 add ignored namespace
         self.ignore_namespace = cl_config.get_regex_patterns_ignore_nm()
 
         self.__print_configuration__()

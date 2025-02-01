@@ -2,11 +2,14 @@ from config.config import Config
 from config.config_k8s_process import ConfigK8sProcess
 from config.config_dispatcher import ConfigDispatcher
 
-from utils.printer import PrintHelper
 from utils.handle_error import handle_exceptions_async_method
 
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
+
 
 class Dispatcher:
     """
@@ -15,14 +18,12 @@ class Dispatcher:
 
     def __init__(self,
                  queue=None,
-                 queue_telegram=None,
-                 queue_mail=None,
-                 queue_slack=None,
+                 queue_dispatcher_apprise=None,
+                 # queue_telegram=None,
+                 # queue_mail=None,
+                 # queue_slack=None,
                  dispatcher_config: ConfigDispatcher = None,
                  k8s_key_config: ConfigK8sProcess = None):
-
-        self.print_helper = PrintHelper('[core.dispatcher]',
-                                        level=config_app.get_internal_log_level())
 
         self.k8s_config = ConfigK8sProcess()
         if k8s_key_config is not None:
@@ -33,9 +34,7 @@ class Dispatcher:
             self.dispatcher_config = dispatcher_config
 
         self.queue = queue
-        self.queue_telegram = queue_telegram
-        self.queue_mail = queue_mail
-        self.queue_slack = queue_slack
+        self.queue_dispatcher_apprise = queue_dispatcher_apprise
 
     @handle_exceptions_async_method
     async def __put_in_queue__(self,
@@ -46,7 +45,7 @@ class Dispatcher:
         :param queue: reference to a queue
         :param obj: object to add in the queue
         """
-        self.print_helper.debug("__put_in_queue__")
+        # self.print_helper.debug("__put_in_queue__")
 
         await queue.put(obj)
 
@@ -57,40 +56,30 @@ class Dispatcher:
         @return:
         """
         try:
-            self.print_helper.info(f"dispatcher run active")
+            logger.info(f"Dispatcher RUN active")
             flag = True
             while flag:
                 flag = loop
                 # get a unit of work
                 item = await self.queue.get()
-                # print(item)
-                # check for stop signal
 
                 if item is None:
-                    self.print_helper.debug(f"dispatcher new receive element: item is None")
+                    logger.warning(f"dispatcher new receive element: item is None")
                     break
 
-                # LS 2024.04.10 temporary limit message length
-                self.print_helper.debug(f"dispatcher new receive element {item}")
+                logger.debug(f"dispatcher new receive element: {item}")
                 # if len(item) < 20:
                 #     self.print_helper.debug(f"dispatcher new receive len(element)<20 item: {str(item)}")
                 #     break
 
                 if item is not None and len(item) > 0:
-                    if self.dispatcher_config.telegram_enable:
-                        await self.__put_in_queue__(self.queue_telegram,
+                    if self.dispatcher_config.apprise_enable:
+                        await self.__put_in_queue__(self.queue_dispatcher_apprise,
                                                     item)
-                    if self.dispatcher_config.email_enable:
-                        await self.__put_in_queue__(self.queue_mail,
-                                                    item)
-                    if self.dispatcher_config.slack_enable:
-                        await self.__put_in_queue__(self.queue_slack,
-                                                    item)
-
-                    if (not self.dispatcher_config.telegram_enable and
-                            not self.dispatcher_config.email_enable and
-                            not self.dispatcher_config.slack_enable):
-                        self.print_helper.info(f"send_to_std_out[Disable send...only std out]=\n{item}")
+                    else:
+                        logger.warning(f"No APPRISE config found. Only std out]=\n{item}")
+                else:
+                    logger.error(f"send_to_std_out[item len 0]=\n{item}")
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"run", err)
+            logger.error(f"run {str(err)}")

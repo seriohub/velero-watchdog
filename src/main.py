@@ -3,13 +3,15 @@ import sys
 
 from config.config import Config
 
-from utils.printer import PrintHelper
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
-print_ls = PrintHelper('[main]',
-                       level=config_app.get_internal_log_level())
-print_ls.info('start')
-print_ls.info('load config')
+
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
+
+logger.info("Watchdog starting...")
+logger.info("Loading config...")
 
 if __name__ == '__main__':
     daemon = False
@@ -19,7 +21,7 @@ if __name__ == '__main__':
     endpoint_url = config_app.get_endpoint_url()
     endpoint_port = config_app.get_endpoint_port()
 
-    print_ls.info(f"run server at url:{endpoint_url}-port={endpoint_port}")
+    logger.info(f"Run server at url:{endpoint_url}-port={endpoint_port}")
 
     uvicorn.run('app:app',
                 host=endpoint_url,

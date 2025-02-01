@@ -5,7 +5,7 @@ metadata:
   labels:
   {{- include "seriohub-velero.labels" . | nindent 4 }}
 data:
-  BACKUP_ENABLE: {{ .Values.watchdogConfig.backupEnable | quote }}
+  BACKUP_ENABLED: {{ .Values.watchdogConfig.backupEnable | quote }}
   EMAIL_ACCOUNT: {{ .Values.watchdogConfig.emailAccount | quote }}
   EMAIL_ENABLE: {{ .Values.watchdogConfig.emailEnable | quote }}
   EMAIL_PASSWORD: {{ .Values.watchdogConfig.emailPassword | quote }}
@@ -16,7 +16,7 @@ data:
   K8S_INCLUSTER_MODE: {{ .Values.watchdogConfig.k8SInclusterMode | quote }}
   PROCESS_CLUSTER_NAME: {{ .Values.watchdogConfig.processClusterName | quote }}
   PROCESS_CYCLE_SEC: {{ .Values.watchdogConfig.processCycleSec | quote }}
-  SCHEDULE_ENABLE: {{ .Values.watchdogConfig.scheduleEnable | quote }}
+  SCHEDULE_ENABLED: {{ .Values.watchdogConfig.scheduleEnable | quote }}
   TELEGRAM_CHAT_ID: {{ .Values.watchdogConfig.telegramChatId | quote }}
   TELEGRAM_ENABLE: {{ .Values.watchdogConfig.telegramEnable | quote }}
   TELEGRAM_TOKEN: {{ .Values.watchdogConfig.telegramToken | quote }}

@@ -5,11 +5,13 @@ from config.config_k8s_process import ConfigK8sProcess
 
 from core.velero_status import VeleroStatus
 
-from utils.printer import PrintHelper
 from utils.handle_error import handle_exceptions_async_method
 
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
 
 
 class KubernetesStatusRun:
@@ -22,9 +24,6 @@ class KubernetesStatusRun:
                  queue=None,
                  cycles_seconds: int = 120,
                  k8s_key_config: ConfigK8sProcess = None):
-
-        self.print_helper = PrintHelper('[core.kubernetes_status_run]',
-                                        level=config_app.get_internal_log_level())
 
         self.queue = queue
         self.queue_request = queue_request
@@ -43,7 +42,7 @@ class KubernetesStatusRun:
         Add object to a queue
         @param obj: data to add in the queue
         """
-        self.print_helper.debug("__put_in_queue__")
+        # self.print_helper.debug("__put_in_queue__")
 
         await self.queue.put(obj)
 
@@ -52,30 +51,35 @@ class KubernetesStatusRun:
         """
         Main loop
         """
-        self.print_helper.info(f"start main procedure seconds {self.cycle_seconds}")
+        # self.print_helper.info(f"start main procedure seconds {self.cycle_seconds}")
+        logger.info(f"Start kubernetes status...")
 
         # add wait
         await asyncio.sleep(2)
 
-        cluster_name = self.k8s_config.cluster_name
+        cluster_name = self.k8s_config.cluster_id
 
         flag = True
         while flag:
             flag = loop
             try:
-                self.print_helper.info(f"self.cycle_seconds {self.cycle_seconds}")
+                logger.debug(f"Kubernetes status cycle in seconds every {self.cycle_seconds}")
                 data_res = {self.k8s_config.cluster_name_key: cluster_name}
 
                 if self.k8s_config.schedule_enable:
-                    schedule_list = self.velero_stat.get_k8s_velero_schedules(namespace=config_app.get_k8s_velero_namespace())
+                    schedule_list = self.velero_stat.get_k8s_velero_schedules(
+                        namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.schedules_key] = schedule_list
 
                 if self.k8s_config.backup_enable:
-                    last_backups_list = self.velero_stat.get_k8s_last_backups(namespace=config_app.get_k8s_velero_namespace())
+                    last_backups_list = self.velero_stat.get_k8s_last_backups(
+                        namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.backups_key] = last_backups_list[self.k8s_config.backups_key]
 
-                    unscheduled_namespace = self.velero_stat.get_unscheduled_namaspace(namespace=config_app.get_k8s_velero_namespace())
-                    data_res[self.k8s_config.unschedule_namespace_key] = unscheduled_namespace[self.k8s_config.unschedule_namespace_key]
+                    unscheduled_namespace = self.velero_stat.get_unscheduled_namespaces()  # (
+                    # namespace=config_app.get_k8s_velero_namespace())
+                    data_res[self.k8s_config.unschedule_namespace_key] = unscheduled_namespace[
+                        self.k8s_config.unschedule_namespace_key]
 
                     all_backups = self.velero_stat.get_k8s_all_backups(namespace=config_app.get_k8s_velero_namespace())
                     data_res[self.k8s_config.all_backups_key] = all_backups[self.k8s_config.all_backups_key]
@@ -86,4 +90,4 @@ class KubernetesStatusRun:
                     await asyncio.sleep(self.cycle_seconds)
 
             except Exception as e:
-                self.print_helper.error(f"run.{e}")
+                logger.error(f"Kubernetes status run: {str(e)}")

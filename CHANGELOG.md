@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [v0.1.6] - 2024-05-29
  
-- Fixed the issue when Velero is deployed in a namespace with a name different than "velero"
+- Fixed the issue when Velero is deployed in a namespace with a name different from "velero"
 - Added K8S_VELERO_NAMESPACE config params
 
 ## [v0.1.5] - 2024-05-21

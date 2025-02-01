@@ -1,8 +1,113 @@
 import os
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
 from dotenv.main import dotenv_values
 
 from utils.handle_error import handle_exceptions_method
+
+from kubernetes import client, config
+import base64
+
+
+def get_configmap(namespace: str, configmap_name: str) -> {}:
+    """
+    Reads a specific parameter from a ConfigMap in Kubernetes.
+
+    :param namespace: Namespace of the ConfigMap.
+    :param configmap_name: Name of the ConfigMap.
+    :return: Value of the parameter or None if the key does not exist.
+    """
+    # Load Kubernetes configuration
+    try:
+        config.load_incluster_config()  # Use cluster context if the app is running in the cluster.
+    except config.ConfigException:
+        config.load_kube_config()  # Use local kubeconfig file if running locally.
+
+    # Initialize the API client
+    v1 = client.CoreV1Api()
+
+    try:
+        # Read the specified ConfigMap.
+        configmap = v1.read_namespaced_config_map(name=configmap_name, namespace=namespace)
+
+        # Returns the value of the parameter if it exists
+        return configmap.data
+    except client.exceptions.ApiException as e:
+        # Handle errors, e.g. ConfigMap not found.
+        if e.status == 404:
+            print(f"ConfigHelper ConfigMap '{configmap_name}' not found in '{namespace}'.")
+        else:
+            print(f"ConfigHelper Error while reading the ConfigMap: {e}")
+        return None
+
+
+def get_configmap_parameter(namespace: str, configmap_name: str, parameter: str) -> str:
+    """
+    Reads a specific parameter from a ConfigMap in Kubernetes.
+
+    :param namespace: Namespace of the ConfigMap.
+    :param configmap_name: Name of the ConfigMap.
+    :param parameter: Key of the parameter to be read.
+    :return: Value of the parameter or None if the key does not exist.
+    """
+    # Load Kubernetes configuration
+    try:
+        config.load_incluster_config()  # Use cluster context if the app is running in the cluster.
+    except config.ConfigException:
+        config.load_kube_config()  # Use local kubeconfig file if running locally.
+
+    # Initialize the API client
+    v1 = client.CoreV1Api()
+
+    try:
+        # Read the specified ConfigMap.
+        configmap = v1.read_namespaced_config_map(name=configmap_name, namespace=namespace)
+
+        # Returns the value of the parameter if it exists
+        return configmap.data.get(parameter, None)
+    except client.exceptions.ApiException as e:
+        # Handle errors, e.g. ConfigMap not found.
+        if e.status == 404:
+            print(f"ConfigHelper ConfigMap '{configmap_name}' not found in '{namespace}'.")
+        else:
+            print(f"ConfigHelper Error while reading the ConfigMap: {e}")
+        return None
+
+
+def get_secret_parameter(namespace: str, secret_name: str, parameter: str) -> str:
+    """
+    Reads a specific parameter from a Kubernetes Secret.
+
+    :param namespace: The namespace where the Secret is located.
+    :param secret_name: The name of the Secret.
+    :param parameter: The key of the parameter to read.
+    :return: The decoded value of the parameter, or None if the key does not exist.
+    """
+    # Load the Kubernetes configuration
+    try:
+        config.load_incluster_config()  # Use in-cluster config when running inside a Kubernetes cluster
+    except config.ConfigException:
+        config.load_kube_config()  # Use local kubeconfig when running outside the cluster
+
+    # Initialize the CoreV1Api client
+    v1 = client.CoreV1Api()
+
+    try:
+        # Retrieve the specified Secret
+        secret = v1.read_namespaced_secret(name=secret_name, namespace=namespace)
+
+        # Get the encoded value of the parameter if it exists
+        encoded_value = secret.data.get(parameter, None)
+        if encoded_value is not None:
+            # Decode the base64-encoded value and return it as a string
+            return base64.b64decode(encoded_value).decode("utf-8")
+        return None
+    except client.exceptions.ApiException as e:
+        # Handle API exceptions (e.g., Secret not found)
+        if e.status == 404:
+            print(f"ConfigHelper Secret '{secret_name}' not found in namespace '{namespace}'.")
+        else:
+            print(f"ConfigHelper Error reading the Secret: {e}")
+        return None
 
 
 # class syntax
@@ -21,11 +126,15 @@ class Config:
             if mask_value and len(value) > 2:
                 index = int(len(value) / 2)
                 partial = '*' * index
-                print(f"INFO    [Env] load_key.key={key} value={value[:index]}{partial}")
+                print(f"ConfigHelper load_key.key={key} value={value[:index]}{partial}")
             else:
-                print(f"INFO    [Env] load_key.key={key} value={value}")
+                print(f"ConfigHelper load_key.key={key} value={value}")
 
         return value
+
+    #
+    # logger config
+    #
 
     @handle_exceptions_method
     def logger_key(self):
@@ -66,50 +175,26 @@ class Config:
         return int(self.load_key('LOG_LEVEL',
                                  '20'))
 
-    @handle_exceptions_method
-    def process_run_sec(self):
-        res = self.load_key('PROCESS_CYCLE_SEC',
-                            '120')
+    #
+    # deploy config
+    #
 
-        if len(res) == 0:
-            res = '120'
-        return int(res)
+    @staticmethod
+    def get_k8s_velero_namespace():
+        return os.getenv('K8S_VELERO_NAMESPACE', 'velero')
+
+    @staticmethod
+    def get_k8s_velero_ui_namespace():
+        return os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui')
+
+    #
+    # run app config
+    #
 
     @handle_exceptions_method
     def internal_debug_enable(self):
         res = self.load_key('DEBUG', 'False')
         return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def telegram_token(self):
-        return self.load_key('TELEGRAM_TOKEN', '', mask_value=True)
-
-    @handle_exceptions_method
-    def telegram_chat_id(self):
-        return self.load_key('TELEGRAM_CHAT_ID', '', mask_value=True)
-
-    @handle_exceptions_method
-    def telegram_enable(self):
-        res = self.load_key('TELEGRAM_ENABLE', 'False')
-        return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def telegram_max_msg_len(self):
-        res = self.load_key('TELEGRAM_MAX_MSG_LEN',
-                            '3000')
-
-        if len(res) == 0:
-            res = '2000'
-        return int(res)
-
-    @handle_exceptions_method
-    def telegram_rate_limit_minute(self):
-        res = self.load_key('TELEGRAM_MAX_MSG_MINUTE',
-                            '20')
-
-        if len(res) == 0:
-            res = '20'
-        return int(res)
 
     @handle_exceptions_method
     def notification_alive_message_hours(self):
@@ -123,51 +208,9 @@ class Config:
 
         return n_hours
 
-    @handle_exceptions_method
-    def email_enable(self):
-        res = self.load_key('EMAIL_ENABLE', 'False')
-        return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def email_smtp_server(self):
-        return self.load_key('EMAIL_SMTP_SERVER', '')
-
-    @handle_exceptions_method
-    def email_smtp_port(self):
-        res = self.load_key('EMAIL_SMTP_PORT',
-                            '587')
-        n_port = int(res)
-        return n_port
-
-    @handle_exceptions_method
-    def email_recipient(self):
-        return self.load_key('EMAIL_RECIPIENTS', '')
-
-    @handle_exceptions_method
-    def email_sender_password(self):
-        return self.load_key('EMAIL_PASSWORD', '', mask_value=True)
-
-    @handle_exceptions_method
-    def email_sender(self):
-        return self.load_key('EMAIL_ACCOUNT', '')
-
-    # LS 2024.04.10 add slack definition - BEGIN
-
-    @handle_exceptions_method
-    def slack_token(self):
-        return self.load_key('SLACK_TOKEN', '', mask_value=True)
-
-    @handle_exceptions_method
-    def slack_channel_id(self):
-        return self.load_key('SLACK_CHANNEL', '', mask_value=True)
-
-    @handle_exceptions_method
-    def slack_enable(self):
-        res = self.load_key('SLACK_ENABLE', 'False')
-        return True if res.lower() == "true" or res.lower() == "1" else False
-
-    # LS 2024.04.10 add slack definition - END
-
+    #
+    # k8s config
+    #
     @handle_exceptions_method
     def k8s_load_kube_config_method(self):
         res = self.load_key('PROCESS_LOAD_KUBE_CONFIG', 'True')
@@ -179,31 +222,12 @@ class Config:
 
     @handle_exceptions_method
     def k8s_cluster_identification(self):
-        return self.load_key('PROCESS_CLUSTER_NAME', None)
+        return self.load_key('CLUSTER_ID', None)
 
     @handle_exceptions_method
     def k8s_incluster_mode(self):
         res = self.load_key('K8S_INCLUSTER_MODE', 'False')
         return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def velero_backup_enable(self):
-        res = self.load_key('BACKUP_ENABLE', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def velero_schedule_enable(self):
-        res = self.load_key('SCHEDULE_ENABLE', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
-
-    @handle_exceptions_method
-    def velero_expired_days_warning(self):
-        res = self.load_key('EXPIRES_DAYS_WARNING',
-                            '20')
-
-        if len(res) == 0:
-            res = '20'
-        return int(res)
 
     @handle_exceptions_method
     def get_regex_patterns_ignore_nm(self):
@@ -254,40 +278,157 @@ class Config:
 
     @staticmethod
     def get_env_variables():
-        data = dotenv_values(find_dotenv())
+        data = dotenv_values()
         kv = {}
         for k, v in data.items():
-            if k.startswith('EMAIL_PASSWORD') or k.startswith('TELEGRAM_TOKEN'):
-                v = v[0].ljust(len(v) - 1, '*')
-                # print(temp)
-                # v = temp
-            kv[k] = v
+            kv[k] = os.getenv(k, v)
         return kv
 
-    def get_notification_skip_completed(self):
-        res = self.load_key('NOTIFICATION_SKIP_COMPLETED', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
+    #
+    # config in velero-watchdog-app config maps
+    #
 
-    def get_notification_skip_inprogress(self):
-        res = self.load_key('NOTIFICATION_SKIP_INPROGRESS', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
+    @handle_exceptions_method
+    def velero_schedule_enable(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "SCHEDULE_ENABLED"
 
-    def get_notification_skip_removed(self):
-        res = self.load_key('NOTIFICATION_SKIP_REMOVED', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
 
-    def get_notification_skip_deleting(self):
-        res = self.load_key('NOTIFICATION_SKIP_DELETING', 'True')
-        return True if res.lower() == "true" or res.lower() == "1" else False
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
 
-    def get_report_backup_item_prefix(self):
-        res = self.load_key('REPORT_BACKUP_ITEM_PREFIX', '')
-        return res if res.lower() == '' else res + ' '
+    @handle_exceptions_method
+    def velero_expired_days_warning(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "EXPIRES_DAYS_WARNING"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return int(value)
+        else:
+            return 20
+
+    @handle_exceptions_method
+    def velero_backup_enable(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "BACKUP_ENABLED"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
 
     def get_report_schedule_item_prefix(self):
-        res = self.load_key('REPORT_SCHEDULE_ITEM_PREFIX', '')
-        return res if res.lower() == '' else res + ' '
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "REPORT_SCHEDULE_ITEM_PREFIX"
 
-    @staticmethod
-    def get_k8s_velero_namespace():
-        return os.getenv('K8S_VELERO_NAMESPACE', 'velero')
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return '' if value.lower() == '' else value + ' '
+        else:
+            return ''
+
+    def get_report_backup_item_prefix(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "REPORT_BACKUP_ITEM_PREFIX"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return '' if value.lower() == '' else value + ' '
+        else:
+            return ''
+
+    def get_notification_skip_completed(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "NOTIFICATION_SKIP_COMPLETED"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
+
+    def get_notification_skip_inprogress(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "NOTIFICATION_SKIP_INPROGRESS"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
+
+    def get_notification_skip_removed(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "NOTIFICATION_SKIP_REMOVED"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
+
+    def get_notification_skip_deleting(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "NOTIFICATION_SKIP_DELETING"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
+
+    @handle_exceptions_method
+    def process_run_sec(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+        parameter = "PROCESS_CYCLE_SEC"
+
+        value = get_configmap_parameter(namespace, configmap_name, parameter)
+        if value is not None:
+            return int(value)
+        else:
+            return 300
+
+    #
+    # secret in velero-watchdog-app secret
+    #
+
+    def get_apprise_config(self):
+        namespace = self.get_k8s_velero_ui_namespace()
+        secret_name = "velero-watchdog-user-config"
+        parameter = "APPRISE"
+
+        value = get_secret_parameter(namespace, secret_name, parameter)
+        if value is not None and value.strip() != '':
+            return value.split(";")
+
+        namespace = self.get_k8s_velero_ui_namespace()
+        secret_name = "velero-watchdog-config"
+        parameter = "APPRISE"
+
+        value = get_secret_parameter(namespace, secret_name, parameter)
+        if value is not None and value.strip() != '':
+            return value.split(";")
+        return []
+
+    def send_start_message(self):
+        res = self.load_key('SEND_RESTART_MESSGE', 'True')
+        return True if res.upper() == 'TRUE' else False
+
+    def send_report_at_startup(self):
+        res = self.load_key('SEND_REPORT_AT_STARTUP', 'True')
+        return True if res.upper() == 'TRUE' else False

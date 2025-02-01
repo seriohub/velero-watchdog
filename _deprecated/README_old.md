@@ -70,9 +70,9 @@ Available plugin:
 | `SLACK_ENABLE`       *         | Bool   |         | Enable Slack notification                                                                                                                                |
 | `SLACK_CHANNEL`      *         | Bool   |         | Channel id where sens the notification                                                                                                                   |
 | `SLACK_TOKEN`        *         | Bool   |         | Token for access to Slack via Http API                                                                                                                   |
-| `BACKUP_ENABLE`                | Bool   | True    | Enable watcher for backups without schedule or last backup for each schedule                                                                             |
+| `BACKUP_ENABLED`               | Bool   | True    | Enable watcher for backups without schedule or last backup for each schedule                                                                             |
 | `EXPIRES_DAYS_WARNING`         | int    | 10      | Number of days to backup expiration below which to display a warning about the backup                                                                    |
-| `SCHEDULE_ENABLE`              | Bool   | True    | Enable watcher for schedule                                                                                                                              |
+| `SCHEDULE_ENABLED`             | Bool   | True    | Enable watcher for schedule                                                                                                                              |
 | `K8S_INCLUSTER_MODE` **        | Bool   | False   | Enable in cluster mode                                                                                                                                   |
 | `IGNORE_NM_1`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
 | `IGNORE_NM_2`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
@@ -97,7 +97,7 @@ Clone the repository:
 
 ### Run native
 
-1. Navigate to the [src](src) folder
+1. Navigate to the [src](../src) folder
 
 2. Dependencies installation:
 
@@ -107,7 +107,7 @@ Clone the repository:
 
 3. Configuration
 
-    Create and edit .env file under src folder, you can start from [.env.template](src/.env.template) under [src](src) folder
+    Create and edit .env file under src folder, you can start from [.env.template](../src/.env.template) under [src](../src) folder
     Setup mandatory parameters in the src/.env file if runs it in the native mode
 
 4. Usage
@@ -159,7 +159,7 @@ Clone the repository:
 
 2. Kubernetes create objects
 
-   1. Navigate to the [k8s](k8s) folder
+   1. Navigate to the [k8s](_deprecated/k8s) folder
 
    2. Create namespace (If it does not exist, the namespace should already be created if you have installed the Velero API):
 
@@ -170,7 +170,7 @@ Clone the repository:
    3. Create the ConfigMap:
    
       >   [!WARNING]  
-      Set the parameters in the [200_config_map.yaml](k8s/200_config_map.yaml) file before applying it according to your environment.
+      Set the parameters in the [200_config_map.yaml](_deprecated/k8s/200_config_map.yaml) file before applying it according to your environment.
 
       ``` bash
       kubectl apply -f 200_config_map.yaml -n velero-ui

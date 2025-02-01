@@ -6,8 +6,8 @@ metadata:
 data:
   PROCESS_CYCLE_SEC: "1800"
   PROCESS_CLUSTER_NAME: "<cluster-name>"
-  BACKUP_ENABLE: "True"
-  SCHEDULE_ENABLE: "True"
+  BACKUP_ENABLED: "True"
+  SCHEDULE_ENABLED: "True"
   K8S_INCLUSTER_MODE: "True"
   EXPIRES_DAYS_WARNING: "20"
 
