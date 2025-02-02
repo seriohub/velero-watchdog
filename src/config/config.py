@@ -426,7 +426,7 @@ class Config:
         return []
 
     def send_start_message(self):
-        res = self.load_key('SEND_RESTART_MESSGE', 'True')
+        res = self.load_key('SEND_START_MESSAGE', 'True')
         return True if res.upper() == 'TRUE' else False
 
     def send_report_at_startup(self):
