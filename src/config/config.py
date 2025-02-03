@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from dotenv.main import dotenv_values
 
 from utils.handle_error import handle_exceptions_method
@@ -145,8 +145,14 @@ class Config:
 
         if value is not None:
             return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+
+        secret_name = "velero-watchdog-config"
+
+        value = get_secret_parameter(namespace, secret_name, param)
+        if value is not None and value.strip() != '':
+            return value.split(";")
+
+        return default_value.lower() == 'true'
 
     def __load_user_param(self, param, default_value):
         local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
@@ -316,6 +322,7 @@ class Config:
 
     @staticmethod
     def get_env_variables():
+        # data = os.environ.copy()  # ✅ This reads the current environment variables.
         data = dotenv_values()
         kv = {}
         for k, v in data.items():

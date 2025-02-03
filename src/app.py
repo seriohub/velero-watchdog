@@ -32,14 +32,15 @@ def load_user_config():
     #                 key != 'PROCESS_CYCLE_SEC'):
     #             os.environ[key] = value
 
+    print("\nAdd user configs environment")
     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
                        configmap_name='velero-watchdog-user-config')
     if cm:
-
         # Update environment variables
         for key, value in cm.items():
+            print(key, value)
             os.environ[key] = value
-
+    print("\n")
     configHelper = Config()
 
 
@@ -70,6 +71,7 @@ async def info():
           tags=['System'],
           summary='Restart service')
 async def restart():
+    print("\n\nRestart watchdog daemon\n\n")
     app.task.cancel()
     load_user_config()
     app.watchdog_daemon = Watchdog(daemon=True)

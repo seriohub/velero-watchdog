@@ -13,6 +13,7 @@ logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.g
 logger.info("Watchdog starting...")
 logger.info("Loading config...")
 
+
 if __name__ == '__main__':
     daemon = False
     if len(sys.argv) > 1 and '--daemon' in sys.argv:
