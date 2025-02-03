@@ -112,8 +112,8 @@ def get_secret_parameter(namespace: str, secret_name: str, parameter: str) -> st
 
 # class syntax
 class Config:
-    def __init__(self, path_env=None):
-        load_dotenv(dotenv_path=path_env)
+    def __init__(self):
+        load_dotenv()
 
     @staticmethod
     def load_key(key, default, print_out: bool = True, mask_value: bool = False):
