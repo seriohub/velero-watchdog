@@ -13,7 +13,7 @@ from config.config import Config, get_configmap
 
 app = FastAPI()
 
-configHelper = None
+configHelper = Config()
 
 
 def load_user_config():
@@ -45,23 +45,23 @@ def load_user_config():
             print(key, value)
             os.environ[key] = value
 
-        env_file = ".env"
-        env_data = {}
-        if os.path.exists(env_file):
-            with open(env_file, "r") as f:
-                for line in f:
-                    if "=" in line:
-                        key, value = line.strip().split("=", 1)
-                        env_data[key] = value  # Manteniamo le vecchie variabili
-
-        # Aggiorna o aggiunge le variabili di os.environ
-        for key, value in cm.items():
-            env_data[key] = value  # Sovrascrive se esiste, altrimenti aggiunge
-
-        # Scrive tutte le variabili aggiornate nel file .env
-        with open(env_file, "w") as f:
-            for key, value in env_data.items():
-                f.write(f"{key}={value}\n")
+        # env_file = ".env"
+        # env_data = {}
+        # if os.path.exists(env_file):
+        #     with open(env_file, "r") as f:
+        #         for line in f:
+        #             if "=" in line:
+        #                 key, value = line.strip().split("=", 1)
+        #                 env_data[key] = value  # Manteniamo le vecchie variabili
+        #
+        # # Aggiorna o aggiunge le variabili di os.environ
+        # for key, value in cm.items():
+        #     env_data[key] = value  # Sovrascrive se esiste, altrimenti aggiunge
+        #
+        # # Scrive tutte le variabili aggiornate nel file .env
+        # with open(env_file, "w") as f:
+        #     for key, value in env_data.items():
+        #         f.write(f"{key}={value}\n")
     print("\n")
     configHelper = Config()
 
