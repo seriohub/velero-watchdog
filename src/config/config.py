@@ -133,48 +133,53 @@ class Config:
         return value
 
     def __load_user_bool_param(self, param, default_value):
-        local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
-        if local_user_config.lower() == 'true':
-            res = self.load_key(param, default_value)
-            return True if res.lower() == 'true' else False
-
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-
-        value = get_configmap_parameter(namespace, configmap_name, param)
-
+        value = self.load_key(param, default_value)
         if value is not None:
             return True if value.lower() == "true" or value.lower() == "1" else False
-
-        secret_name = "velero-watchdog-config"
-
-        value = get_secret_parameter(namespace, secret_name, param)
-        if value is not None and value.strip() != '':
-            return value.split(";")
-
-        return default_value.lower() == 'true'
+        return None
+        # local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
+        # if local_user_config.lower() == 'true':
+        #     res = self.load_key(param, default_value)
+        #     return True if res.lower() == 'true' else False
+        #
+        # namespace = self.get_k8s_velero_ui_namespace()
+        # configmap_name = "velero-watchdog-user-config"
+        #
+        # value = get_configmap_parameter(namespace, configmap_name, param)
+        #
+        # if value is not None:
+        #     return True if value.lower() == "true" or value.lower() == "1" else False
+        #
+        # secret_name = "velero-watchdog-config"
+        #
+        # value = get_secret_parameter(namespace, secret_name, param)
+        # if value is not None and value.strip() != '':
+        #     return value.split(";")
+        #
+        # return default_value.lower() == 'true'
 
     def __load_user_param(self, param, default_value):
-        local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
-        if local_user_config.lower() == 'true':
-            res = self.load_key(param, default_value)
-            return res
-
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-
-        value = get_configmap_parameter(namespace, configmap_name, param)
-
-        if value is not None:
-            return value
-
-        configmap_name = "velero-watchdog-config"
-
-        value = get_configmap_parameter(namespace, configmap_name, param)
-        if value is not None and value.strip() != '':
-            return value
-
-        return default_value
+        return self.load_key(param, default_value)
+        # local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
+        # if local_user_config.lower() == 'true':
+        #     res = self.load_key(param, default_value)
+        #     return res
+        #
+        # namespace = self.get_k8s_velero_ui_namespace()
+        # configmap_name = "velero-watchdog-user-config"
+        #
+        # value = get_configmap_parameter(namespace, configmap_name, param)
+        #
+        # if value is not None:
+        #     return value
+        #
+        # configmap_name = "velero-watchdog-config"
+        #
+        # value = get_configmap_parameter(namespace, configmap_name, param)
+        # if value is not None and value.strip() != '':
+        #     return value
+        #
+        # return default_value
 
     #
     # logger config
