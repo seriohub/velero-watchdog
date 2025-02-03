@@ -26,7 +26,7 @@ def load_user_config():
 
         # Update environment variables
         for key, value in cm.items():
-            if key != 'K8S_INCLUSTER_MODE' and key != 'PROCESS_KUBE_CONFIG' and key != 'PROCESS_LOAD_KUBE_CONFIG':
+            if key != 'K8S_IN_CLUSTER_MODE' and key != 'PROCESS_KUBE_CONFIG' and key != 'PROCESS_LOAD_KUBE_CONFIG':
                 os.environ[key] = value
 
     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),

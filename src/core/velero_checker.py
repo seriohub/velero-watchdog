@@ -496,7 +496,7 @@ class VeleroChecker:
                 if item is None:
                     break
 
-                logger.info(f"checker new element received {str(item)}")
+                logger.info(f"checker new element received {str(item)[:50]}")
 
                 if item is not None:
                     await self.__unpack_data(item)

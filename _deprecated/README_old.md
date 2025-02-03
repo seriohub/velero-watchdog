@@ -73,7 +73,7 @@ Available plugin:
 | `BACKUP_ENABLED`               | Bool   | True    | Enable watcher for backups without schedule or last backup for each schedule                                                                             |
 | `EXPIRES_DAYS_WARNING`         | int    | 10      | Number of days to backup expiration below which to display a warning about the backup                                                                    |
 | `SCHEDULE_ENABLED`             | Bool   | True    | Enable watcher for schedule                                                                                                                              |
-| `K8S_INCLUSTER_MODE` **        | Bool   | False   | Enable in cluster mode                                                                                                                                   |
+| `K8S_IN_CLUSTER_MODE` **       | Bool   | False   | Enable in cluster mode                                                                                                                                   |
 | `IGNORE_NM_1`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
 | `IGNORE_NM_2`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |
 | `IGNORE_NM_3`                  | String |         | regex to ignore a namespace or a group of namespaces                                                                                                     |

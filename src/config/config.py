@@ -226,7 +226,7 @@ class Config:
 
     @handle_exceptions_method
     def k8s_incluster_mode(self):
-        res = self.load_key('K8S_INCLUSTER_MODE', 'False')
+        res = self.load_key('K8S_IN_CLUSTER_MODE', 'False')
         return True if res.lower() == "true" or res.lower() == "1" else False
 
     @handle_exceptions_method
