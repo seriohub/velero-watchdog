@@ -112,6 +112,9 @@ class Watchdog:
         except Exception as e:
             logger.error(f"main_start ${str(e)}")
 
+    async def get_env(self):
+        return config_app.get_env_variables()
+
 
 if __name__ == "__main__":
     print(f"INFO    [SYSTEM] start application version {__version__} release date {__date__}")
