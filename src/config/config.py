@@ -132,6 +132,44 @@ class Config:
 
         return value
 
+    def __load_user_bool_param(self, param, default_value):
+        local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
+        if local_user_config.lower() == 'true':
+            res = self.load_key(param, default_value)
+            return True if res.lower() == 'true' else False
+
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+
+        value = get_configmap_parameter(namespace, configmap_name, param)
+
+        if value is not None:
+            return True if value.lower() == "true" or value.lower() == "1" else False
+        else:
+            return True
+
+    def __load_user_param(self, param, default_value):
+        local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
+        if local_user_config.lower() == 'true':
+            res = self.load_key(param, default_value)
+            return res
+
+        namespace = self.get_k8s_velero_ui_namespace()
+        configmap_name = "velero-watchdog-user-config"
+
+        value = get_configmap_parameter(namespace, configmap_name, param)
+
+        if value is not None:
+            return value
+
+        secret_name = "velero-watchdog-config"
+
+        value = get_secret_parameter(namespace, secret_name, param)
+        if value is not None and value.strip() != '':
+            return value.split(";")
+
+        return default_value
+
     #
     # logger config
     #
@@ -148,7 +186,7 @@ class Config:
     @handle_exceptions_method
     def logger_save_to_file(self):
         res = self.load_key('LOG_SAVE', 'False')
-        return True if res.upper() == 'TRUE' else False
+        return True if res.lower() == 'true' else False
 
     @handle_exceptions_method
     def logger_folder(self):
@@ -285,129 +323,57 @@ class Config:
         return kv
 
     #
-    # config in velero-watchdog-app config maps
+    # user configs
     #
 
     @handle_exceptions_method
     def velero_schedule_enable(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "SCHEDULE_ENABLED"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("SCHEDULE_ENABLED", "True")
 
     @handle_exceptions_method
     def velero_expired_days_warning(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "EXPIRES_DAYS_WARNING"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return int(value)
-        else:
-            return 20
+        return int(self.__load_user_param("EXPIRES_DAYS_WARNING", 20))
 
     @handle_exceptions_method
     def velero_backup_enable(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "BACKUP_ENABLED"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("BACKUP_ENABLED", "True")
 
     def get_report_schedule_item_prefix(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "REPORT_SCHEDULE_ITEM_PREFIX"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return '' if value.lower() == '' else value + ' '
-        else:
-            return ''
+        return self.__load_user_param("REPORT_SCHEDULE_ITEM_PREFIX", "")
 
     def get_report_backup_item_prefix(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "REPORT_BACKUP_ITEM_PREFIX"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return '' if value.lower() == '' else value + ' '
-        else:
-            return ''
+        return self.__load_user_param("REPORT_BACKUP_ITEM_PREFIX", "")
 
     def get_notification_skip_completed(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "NOTIFICATION_SKIP_COMPLETED"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("NOTIFICATION_SKIP_COMPLETED", "True")
 
     def get_notification_skip_inprogress(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "NOTIFICATION_SKIP_INPROGRESS"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("NOTIFICATION_SKIP_INPROGRESS", "True")
 
     def get_notification_skip_removed(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "NOTIFICATION_SKIP_REMOVED"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("NOTIFICATION_SKIP_REMOVED", "True")
 
     def get_notification_skip_deleting(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "NOTIFICATION_SKIP_DELETING"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return True if value.lower() == "true" or value.lower() == "1" else False
-        else:
-            return True
+        return self.__load_user_bool_param("NOTIFICATION_SKIP_DELETING", "True")
 
     @handle_exceptions_method
     def process_run_sec(self):
-        namespace = self.get_k8s_velero_ui_namespace()
-        configmap_name = "velero-watchdog-user-config"
-        parameter = "PROCESS_CYCLE_SEC"
-
-        value = get_configmap_parameter(namespace, configmap_name, parameter)
-        if value is not None:
-            return int(value)
-        else:
-            return 300
+        local_user_config = self.load_key("FORCE_LOCAL_PROCESS_CYCLE", "False")
+        if local_user_config.lower() == 'true':
+            res = self.load_key("FORCE_LOCAL_PROCESS_VALUE", 10)
+            return int(res)
+        return int(self.__load_user_param("PROCESS_CYCLE_SEC", 300))
 
     #
     # secret in velero-watchdog-app secret
     #
 
     def get_apprise_config(self):
+        local_user_config = self.load_key("LOCAL_USER_CONFIG", "False")
+        if local_user_config.lower() == 'true':
+            res = self.load_key("APPRISE", "")
+            return res.split(";")
+
         namespace = self.get_k8s_velero_ui_namespace()
         secret_name = "velero-watchdog-user-config"
         parameter = "APPRISE"
@@ -426,9 +392,7 @@ class Config:
         return []
 
     def send_start_message(self):
-        res = self.load_key('SEND_START_MESSAGE', 'True')
-        return True if res.upper() == 'TRUE' else False
+        return self.__load_user_bool_param("SEND_START_MESSAGE", "True")
 
     def send_report_at_startup(self):
-        res = self.load_key('SEND_REPORT_AT_STARTUP', 'True')
-        return True if res.upper() == 'TRUE' else False
+        return self.__load_user_bool_param("SEND_REPORT_AT_STARTUP", "True")

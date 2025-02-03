@@ -1,5 +1,6 @@
 import calendar
 from datetime import datetime
+import json
 
 from config.config import Config
 from config.config_k8s_process import ConfigK8sProcess
@@ -12,6 +13,20 @@ config_app = Config()
 logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
 
 
+def flatten_json(obj, level=0, max_level=2):
+    """Format JSON with indentation up to max_level, then flatten deeper levels."""
+    if isinstance(obj, dict):
+        if level >= max_level:
+            return json.dumps(obj)  # Flatten deeper levels
+        return {k: flatten_json(v, level + 1, max_level) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        if level >= max_level:
+            return json.dumps(obj)  # Flatten deeper levels
+        return [flatten_json(v, level + 1, max_level) for v in obj]
+    else:
+        return obj
+
+
 class VeleroChecker:
     """
     The class allows to process the data received from k8s APIs
@@ -22,9 +37,11 @@ class VeleroChecker:
                  dispatcher_queue=None,
                  dispatcher_max_msg_len=8000,
                  dispatcher_alive_message_hours=24,
-                 k8s_key_config: ConfigK8sProcess = None):
+                 k8s_key_config: ConfigK8sProcess = None,
+                 daemon=True):
 
         self.queue = queue
+        self.daemon = daemon
 
         self.dispatcher_max_msg_len = dispatcher_max_msg_len
         self.dispatcher_queue = dispatcher_queue
@@ -45,7 +62,7 @@ class VeleroChecker:
 
         self.final_message = ""
         self.unique_message = False
-        self.first_run = config_app.send_report_at_startup()
+        self.first_run = (daemon and config_app.send_report_at_startup()) or (daemon is False)
 
     @staticmethod
     def get_changed_keys(old, new, skip_fields):
@@ -116,7 +133,7 @@ class VeleroChecker:
             msg = ''
             if 'cluster_name' in message:
                 if message['cluster_name'] is not None:
-                    msg += 'Cluster: ' + message['cluster_name'] + '\n'
+                    msg = 'Cluster: ' + message['cluster_name'] + '\n'
             if 'backups' in message:
                 msg += message['backups']
             if 'schedules' in message:
@@ -136,13 +153,16 @@ class VeleroChecker:
                 cluster_name = await self.__process_cluster_name(data)
 
                 schedules: dict[str, str] | None = None
-                # backups: dict[str, str] | None = None
+                backups: dict[str, str] | None = None
 
                 if self.first_run:
-                    backups = await self.__process_backups_report(data)
+                    if self.k8s_config.backups_key in data:
+                        backups = await self.__process_backups_report(data)
                 else:
-                    schedules = await self.__process_schedule_difference_report(data)
-                    backups = await self.__process_backups_difference_report(data)
+                    if self.k8s_config.schedules_key in data:
+                        schedules = await self.__process_schedule_difference_report(data)
+                    if self.k8s_config.backups_key in data:
+                        backups = await self.__process_backups_difference_report(data)
 
                 self.old_data = data
 
@@ -327,12 +347,12 @@ class VeleroChecker:
             logger.error(f"__last_backup_report {str(err)}")
 
     async def __process_backups_difference_report(self, data):
-        logger.debug("Check for differences in backups")
+        logger.info("Check for differences in backups")
 
         backups = data[self.k8s_config.all_backups_key]
 
-        if self.old_data[self.k8s_config.all_backups_key] == data[self.k8s_config.all_backups_key]:
-            logger.debug("Check for differences in backups: do nothing same data")
+        if self.k8s_config.all_backups_key not in self.old_data or self.old_data[self.k8s_config.all_backups_key] == data[self.k8s_config.all_backups_key]:
+            logger.info("Check for differences in backups: do nothing same data")
             return
 
         backups_diff = self.__find_dict_difference(self.old_data[self.k8s_config.all_backups_key], backups)
@@ -403,7 +423,7 @@ class VeleroChecker:
         logger.info("Check for differences in schedules")
 
         try:
-            if self.old_data[self.k8s_config.schedules_key] == data[self.k8s_config.schedules_key]:
+            if self.k8s_config.schedules_key not in self.old_data or self.old_data[self.k8s_config.schedules_key] == data[self.k8s_config.schedules_key]:
                 logger.info("Check for differences in schedules: do nothing same data")
                 return
 
@@ -466,10 +486,10 @@ class VeleroChecker:
             msg = msg + f"{point}Backups prefix={config_app.get_report_backup_item_prefix()}\n"
             msg = msg + f"{point}Schedules prefix={config_app.get_report_schedule_item_prefix()}\n"
 
-            if self.alive_message_seconds >= 3600:
-                msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 3600)} hours"
-            else:
-                msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 60)} minutes"
+            # if self.alive_message_seconds >= 3600:
+            #     msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 3600)} hours"
+            # else:
+            #     msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 60)} minutes"
         else:
             msg = "Error init config class"
 
@@ -483,7 +503,7 @@ class VeleroChecker:
         """
         try:
             logger.info("checker run")
-            if config_app.send_start_message():
+            if self.daemon and config_app.send_start_message():  # do not send configuration message in no daemon app
                 await self.send_active_configuration()
 
             flag = True
@@ -496,7 +516,11 @@ class VeleroChecker:
                 if item is None:
                     break
 
-                logger.info(f"checker new element received {str(item)[:50]}")
+                logger.info("Velero checker: new element received")
+                logger.debug(f"Velero checker: new element received"
+                             "\n--------------------------------------------------------------------------------------"
+                             f"\n{json.dumps(flatten_json(item), sort_keys=True, indent=4)}"
+                             f"\n-------------------------------------------------------------------------------------")
 
                 if item is not None:
                     await self.__unpack_data(item)

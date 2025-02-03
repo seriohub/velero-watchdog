@@ -74,7 +74,8 @@ class Watchdog:
                                    dispatcher_queue=queue_dispatcher,
                                    dispatcher_max_msg_len=disp_class.max_msg_len,
                                    dispatcher_alive_message_hours=disp_class.alive_message,
-                                   k8s_key_config=k8s_class
+                                   k8s_key_config=k8s_class,
+                                   daemon=daemon
                                    ))
         velero_stat_checker = tasks[-1]
 

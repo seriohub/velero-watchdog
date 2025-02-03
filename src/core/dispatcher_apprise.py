@@ -98,7 +98,11 @@ class DispatcherApprise:
                 if item is None:
                     break
 
-                logger.debug(f"APPRISE dispatcher: new element received {str(item)}")
+                logger.info("APPRISE dispatcher: new element received")
+                logger.debug(f"APPRISE dispatcher: new element received"
+                             "\n--------------------------------------------------------------------------------------"
+                             f"\n{str(item)}"
+                             f"\n-------------------------------------------------------------------------------------")
 
                 if item is not None and len(item) > 0:
                     await self.send_msgs(item)

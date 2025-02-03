@@ -19,15 +19,18 @@ configHelper = None
 def load_user_config():
     global configHelper
 
-    if str(os.getenv('ENV')).lower() == 'development':
-
-        cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-                           configmap_name='velero-watchdog-config')
-
-        # Update environment variables
-        for key, value in cm.items():
-            if key != 'K8S_IN_CLUSTER_MODE' and key != 'PROCESS_KUBE_CONFIG' and key != 'PROCESS_LOAD_KUBE_CONFIG':
-                os.environ[key] = value
+    # if str(os.getenv('ENV')).lower() == 'development':
+    #
+    #     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
+    #                        configmap_name='velero-watchdog-config')
+    #
+    #     # Update environment variables
+    #     for key, value in cm.items():
+    #         if (key != 'K8S_IN_CLUSTER_MODE' and
+    #                 key != 'PROCESS_KUBE_CONFIG' and
+    #                 key != 'PROCESS_LOAD_KUBE_CONFIG' and
+    #                 key != 'PROCESS_CYCLE_SEC'):
+    #             os.environ[key] = value
 
     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
                        configmap_name='velero-watchdog-user-config')
