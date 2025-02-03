@@ -327,8 +327,8 @@ class Config:
 
     @staticmethod
     def get_env_variables():
-        data = os.environ.copy()  # ✅ This reads the current environment variables.
-        # data = dotenv_values()
+        # data = os.environ.copy()  # ✅ This reads the current environment variables.
+        data = dotenv_values()
         kv = {}
         for k, v in data.items():
             kv[k] = os.getenv(k, v)

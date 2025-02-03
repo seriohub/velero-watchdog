@@ -119,7 +119,7 @@ async def report():
          summary='Get the current configuration')
 async def get_config():
     # res = configHelper.get_env_variables()
-    res = app.watchdog_daemon.get_env()
+    res = await app.watchdog_daemon.get_env()
     response = SuccessfulRequest(payload=res)
     return JSONResponse(content=response.toJSON(), status_code=200)
 
