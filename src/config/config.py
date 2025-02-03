@@ -334,6 +334,9 @@ class Config:
             kv[k] = os.getenv(k, v)
         return kv
 
+    def uvicorn_reload_update(self):
+        return bool(self.load_key('UVICORN_RELOAD', 'False').lower() == 'true')
+
     #
     # user configs
     #
