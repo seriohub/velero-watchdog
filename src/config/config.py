@@ -168,11 +168,11 @@ class Config:
         if value is not None:
             return value
 
-        secret_name = "velero-watchdog-config"
+        configmap_name = "velero-watchdog-config"
 
-        value = get_secret_parameter(namespace, secret_name, param)
+        value = get_configmap_parameter(namespace, configmap_name, param)
         if value is not None and value.strip() != '':
-            return value.split(";")
+            return value
 
         return default_value
 
