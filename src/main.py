@@ -2,7 +2,7 @@ import os
 import uvicorn
 import sys
 
-from config.config import Config, get_configmap, get_secret_parameter
+from config.config import Config , get_configmap, get_secret_parameter
 
 from utils.logger import ColoredLogger, LEVEL_MAPPING
 import logging

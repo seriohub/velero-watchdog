@@ -36,20 +36,6 @@ async def info():
     response = SuccessfulRequest(payload=res)
     return JSONResponse(content=response.toJSON(), status_code=200)
 
-
-@app.post("/restart",
-          tags=['System'],
-          summary='Restart service')
-async def restart():
-    print("\n\nRestart watchdog daemon\n\n")
-    app.task.cancel()
-    app.watchdog_daemon = Watchdog(daemon=True)
-    app.task = asyncio.create_task(app.watchdog_daemon.run())
-    res = {'restarted': 'Done!'}
-    response = SuccessfulRequest(payload=res)
-    return JSONResponse(content=response.toJSON(), status_code=200)
-
-
 @app.post("/send-report",
           tags=['Run'],
           summary='Send report')
