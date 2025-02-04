@@ -16,53 +16,6 @@ app = FastAPI()
 configHelper = Config()
 
 
-def load_user_config():
-    global configHelper
-
-    # if str(os.getenv('ENV')).lower() == 'development':
-    #
-    #     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-    #                        configmap_name='velero-watchdog-config')
-    #
-    #     # Update environment variables
-    #     for key, value in cm.items():
-    #         if (key != 'K8S_IN_CLUSTER_MODE' and
-    #                 key != 'PROCESS_KUBE_CONFIG' and
-    #                 key != 'PROCESS_LOAD_KUBE_CONFIG' and
-    #                 key != 'PROCESS_CYCLE_SEC'):
-    #             os.environ[key] = value
-
-    print("\nAdd user configs environment")
-    cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-                       configmap_name='velero-watchdog-user-config')
-    if cm:
-        # Update environment variables
-        for key, value in cm.items():
-            os.environ[key] = value
-
-        env_file = ".env"
-        env_data = {}
-        if os.path.exists(env_file):
-            with open(env_file, "r") as f:
-                for line in f:
-                    if "=" in line:
-                        key, value = line.strip().split("=", 1)
-                        env_data[key] = value  # Manteniamo le vecchie variabili
-
-        # Aggiorna o aggiunge le variabili di os.environ
-        for key, value in os.environ.items():
-            env_data[key] = value  # Sovrascrive se esiste, altrimenti aggiunge
-
-        # Scrive tutte le variabili aggiornate nel file .env
-        with open(env_file, "w") as f:
-            for key, value in env_data.items():
-                f.write(f"{key}={value}\n")
-    print("\n")
-    configHelper = Config()
-
-
-load_user_config()
-
 app.watchdog_daemon = Watchdog(daemon=True)
 app.task = asyncio.create_task(app.watchdog_daemon.run())
 
@@ -90,7 +43,6 @@ async def info():
 async def restart():
     print("\n\nRestart watchdog daemon\n\n")
     app.task.cancel()
-    load_user_config()
     app.watchdog_daemon = Watchdog(daemon=True)
     app.task = asyncio.create_task(app.watchdog_daemon.run())
     res = {'restarted': 'Done!'}
