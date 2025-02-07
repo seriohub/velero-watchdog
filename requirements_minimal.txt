@@ -1,6 +1,0 @@
-pydantic~=2.11.0a1
-kubernetes~=32.0.0
-apprise~=1.9.2
-fastapi~=0.115.8
-python-dotenv~=1.0.1
-uvicorn~=0.34.0

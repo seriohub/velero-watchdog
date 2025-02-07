@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+## [v0.1.7] - 2025-02-07
+
+🚀 New Features
+- 🔔 Integrated Apprise to manage notification delivery
+- ⚙️ Introduced a feature to allow users to configure user notification preferences
+
+🔧 Improvements
+- 📜 Enhanced logging system for better debugging and traceability
+- ✨ Various optimizations and minor fixes to improve performance and stability
+- 📦 Upgraded various dependencies to their latest stable versions for better security and performance
+
 ## [v0.1.6] - 2024-05-29
  
 - Fixed the issue when Velero is deployed in a namespace with a name different from "velero"
@@ -47,6 +58,8 @@ All notable changes to this project will be documented in this file.
 ***
 
 ## Tags
+
+v0.1.7: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.7](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.7)
 
 v0.1.6: [https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6](https://github.com/seriohub/velero-watchdog/releases/tag/v0.1.6)
 
