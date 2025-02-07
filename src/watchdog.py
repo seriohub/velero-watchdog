@@ -9,18 +9,19 @@ from config.config_dispatcher import ConfigDispatcher
 from core.kubernetes_status_run import KubernetesStatusRun
 from core.velero_checker import VeleroChecker
 from core.dispatcher import Dispatcher
-from core.dispatcher_telegram import DispatcherTelegram
-from core.dispatcher_email import DispatcherEmail
-from core.dispatcher_slack import DispatcherSlack
+from core.dispatcher_apprise import DispatcherApprise
 
 from utils.handle_error import handle_exceptions_async_method
-from utils.printer import PrintHelper
 
 from app_data import __version__
 from app_data import __date__
 
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
+
 
 class Watchdog:
 
@@ -33,9 +34,6 @@ class Watchdog:
         self.loop_seconds = self.config_prg.process_run_sec()
         self.clk8s_setup_disp = ConfigDispatcher(self.config_prg)
         self.clk8s_setup = ConfigK8sProcess(self.config_prg)
-
-        self.print_helper = PrintHelper('[common.routers.health]',
-                                        level=config_app.get_internal_log_level())
 
     @staticmethod
     def __get_utc_datetime_string__():
@@ -54,11 +52,7 @@ class Watchdog:
         await self.queue_request.put(1)
 
     @handle_exceptions_async_method
-    async def run(self,
-                  test_notification=False,
-                  test_email=False,
-                  test_telegram=False,
-                  test_slack=False):
+    async def run(self):
         daemon = self.daemon_mode
         seconds = self.loop_seconds
         disp_class = self.clk8s_setup_disp
@@ -68,10 +62,7 @@ class Watchdog:
         tasks = []
         queue_data = asyncio.Queue()
         queue_dispatcher = asyncio.Queue()
-        queue_dispatcher_telegram = asyncio.Queue()
-        queue_dispatcher_mail = asyncio.Queue()
-        # LS 2024.04.10 add slack queue
-        queue_dispatcher_slack = asyncio.Queue()
+        # queue_dispatcher_apprise = asyncio.Queue()
 
         tasks.append(KubernetesStatusRun(queue_request=self.queue_request,
                                          queue=queue_data,
@@ -83,37 +74,26 @@ class Watchdog:
                                    dispatcher_queue=queue_dispatcher,
                                    dispatcher_max_msg_len=disp_class.max_msg_len,
                                    dispatcher_alive_message_hours=disp_class.alive_message,
-                                   k8s_key_config=k8s_class
+                                   k8s_key_config=k8s_class,
+                                   daemon=daemon
                                    ))
         velero_stat_checker = tasks[-1]
 
-        tasks.append(Dispatcher(queue=queue_dispatcher,
-                                queue_telegram=queue_dispatcher_telegram,
-                                queue_mail=queue_dispatcher_mail,
-                                queue_slack=queue_dispatcher_slack,
-                                dispatcher_config=disp_class,
-                                k8s_key_config=k8s_class
-                                ))
-        dispatcher_main = tasks[-1]
+        # tasks.append(Dispatcher(queue=queue_dispatcher,
+        #                         queue_dispatcher_apprise=queue_dispatcher_apprise,
+        #                         dispatcher_config=disp_class,
+        #                         k8s_key_config=k8s_class
+        #                         ))
+        # dispatcher_main = tasks[-1]
+        # tasks.append(DispatcherApprise(queue_dispatcher_apprise,
+        #                                dispatcher_config=disp_class
+        #                                ))
 
-        tasks.append(DispatcherTelegram(queue=queue_dispatcher_telegram,
-                                        dispatcher_config=disp_class,
-                                        k8s_key_config=k8s_class
-                                        ))
-        dispatcher_telegram = tasks[-1]
+        tasks.append(DispatcherApprise(queue=queue_dispatcher,
+                                       dispatcher_config=disp_class
+                                       ))
 
-        tasks.append(DispatcherEmail(queue=queue_dispatcher_mail,
-                                     dispatcher_config=disp_class,
-                                     k8s_key_config=k8s_class
-                                     ))
-        dispatcher_mail = tasks[-1]
-
-        # LS 2024.04.10 add slack definition
-        tasks.append(DispatcherSlack(queue=queue_dispatcher_slack,
-                                     dispatcher_config=disp_class,
-                                     k8s_key_config=k8s_class
-                                     ))
-        dispatcher_slack = tasks[-1]
+        dispatcher_apprise = tasks[-1]
 
         try:
 
@@ -121,33 +101,19 @@ class Watchdog:
                 await asyncio.gather(*[t.run() for t in tasks])
                 self.tasks = tasks
             else:
-                if test_notification:
-                    self.print_helper.info(f"send test channel notification "
-                                           f"email:{test_email} telegram:{test_email} slack:{test_slack} ")
-                    await queue_dispatcher.put(f"Velero-Watchdog- This is a test message."
-                                               f"\nStart request at :{self.__get_utc_datetime_string__()}")
-                else:
-                    await k8s_stat_read.run(loop=False)
-                    await velero_stat_checker.run(loop=False)
-
-                await dispatcher_main.run(loop=False)
-
-                if (self.config_prg.telegram_enable() and
-                        (not test_notification or (test_notification and test_telegram))):
-                    await dispatcher_telegram.run(loop=False)
-                if (self.config_prg.email_enable()
-                        and (not test_notification or (test_notification and test_email))):
-                    await dispatcher_mail.run(loop=False)
-                # LS 2024.04.10 slack channel
-                if (self.config_prg.slack_enable()
-                        and (not test_notification or (test_notification and test_slack))):
-                    await dispatcher_slack.run(loop=False)
+                await k8s_stat_read.run(loop=False)
+                await velero_stat_checker.run(loop=False)
+                # await dispatcher_main.run(loop=False)
+                await dispatcher_apprise.run(loop=False)
 
         except KeyboardInterrupt:
-            self.print_helper.wrn("user request stop")
+            logger.info("User request stop")
             pass
         except Exception as e:
-            self.print_helper.error_and_exception(f"main_start", e)
+            logger.error(f"main_start ${str(e)}")
+
+    async def get_env(self):
+        return config_app.get_env_variables()
 
 
 if __name__ == "__main__":

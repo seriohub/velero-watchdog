@@ -1,14 +1,30 @@
 import calendar
 from datetime import datetime
+import json
 
 from config.config import Config
 from config.config_k8s_process import ConfigK8sProcess
 
-from utils.printer import PrintHelper
 from utils.handle_error import handle_exceptions_async_method, handle_exceptions_method
-
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
+
+
+def flatten_json(obj, level=0, max_level=2):
+    """Format JSON with indentation up to max_level, then flatten deeper levels."""
+    if isinstance(obj, dict):
+        if level >= max_level:
+            return json.dumps(obj)  # Flatten deeper levels
+        return {k: flatten_json(v, level + 1, max_level) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        if level >= max_level:
+            return json.dumps(obj)  # Flatten deeper levels
+        return [flatten_json(v, level + 1, max_level) for v in obj]
+    else:
+        return obj
 
 
 class VeleroChecker:
@@ -21,12 +37,11 @@ class VeleroChecker:
                  dispatcher_queue=None,
                  dispatcher_max_msg_len=8000,
                  dispatcher_alive_message_hours=24,
-                 k8s_key_config: ConfigK8sProcess = None):
-
-        self.print_helper = PrintHelper('[core.velero_checker]',
-                                        level=config_app.get_internal_log_level())
+                 k8s_key_config: ConfigK8sProcess = None,
+                 daemon=True):
 
         self.queue = queue
+        self.daemon = daemon
 
         self.dispatcher_max_msg_len = dispatcher_max_msg_len
         self.dispatcher_queue = dispatcher_queue
@@ -43,11 +58,11 @@ class VeleroChecker:
         self.cluster_name = ""
         self.force_alive_message = False
 
-        self.send_config = False
+        # self.send_config = True
 
         self.final_message = ""
         self.unique_message = False
-        self.first_run = True
+        self.first_run = (daemon and config_app.send_report_at_startup()) or (daemon is False)
 
     @staticmethod
     def get_changed_keys(old, new, skip_fields):
@@ -82,10 +97,11 @@ class VeleroChecker:
         new_values = {key: new_dict[key] for key in changed_keys}
 
         return {
-            "has_diff": len(changed_keys) > 0 or len(list(keys_only_in_old_dict)) > 0 or len(list(keys_only_in_new_dict)) > 0,
+            "has_diff": len(changed_keys) > 0 or len(list(keys_only_in_old_dict)) > 0 or len(
+                list(keys_only_in_new_dict)) > 0,
             "removed": list(keys_only_in_old_dict),
             "added": list(keys_only_in_new_dict),
-            "changed": changed_keys,    # list(differing_dict1.keys()),
+            "changed": changed_keys,  # list(differing_dict1.keys()),
             "old_values": old_values,
             "new_values": new_values,
         }
@@ -99,7 +115,7 @@ class VeleroChecker:
         :param queue: reference to a queue
         :param obj: objet to add
         """
-        self.print_helper.debug("__put_in_queue__")
+        # self.print_helper.debug("__put_in_queue__")
 
         await queue.put(obj)
 
@@ -109,19 +125,21 @@ class VeleroChecker:
         Send message to dispatcher engine
         @param message: message to send
         """
-        self.print_helper.info(f"send_to_dispatcher. msg len= {len(message)}-unique {self.unique_message} ")
+        logger.debug(f"send_to_dispatcher. msg len= {len(message)}-unique {self.unique_message} ")
         if len(message) > 0:
-            self.print_helper.debug(message)
+            logger.debug(f"{message}")
             # if not self.unique_message or force_message:
             self.last_send = calendar.timegm(datetime.today().timetuple())
             msg = ''
             if 'cluster_name' in message:
                 if message['cluster_name'] is not None:
-                    msg += 'Cluster: ' + message['cluster_name'] + '\n'
+                    msg = 'Cluster: ' + message['cluster_name'] + '\n'
             if 'backups' in message:
                 msg += message['backups']
             if 'schedules' in message:
                 msg += message['schedules']
+            if 'configs' in message:
+                msg += message['configs']
             await self.__put_in_queue__(self.dispatcher_queue, msg)
 
     async def __unpack_data(self, data):
@@ -129,7 +147,7 @@ class VeleroChecker:
          Check the key received and calls the procedure associated with the key type
         :param data:
         """
-        self.print_helper.debug("__unpack_data")
+        # self.print_helper.debug("__unpack_data")
         try:
             if isinstance(data, dict):
                 cluster_name = await self.__process_cluster_name(data)
@@ -138,10 +156,13 @@ class VeleroChecker:
                 backups: dict[str, str] | None = None
 
                 if self.first_run:
-                    backups = await self.__process_backups_report(data)
+                    if self.k8s_config.backups_key in data:
+                        backups = await self.__process_backups_report(data)
                 else:
-                    schedules = await self.__process_schedule_difference_report(data)
-                    backups = await self.__process_backups_difference_report(data)
+                    if self.k8s_config.schedules_key in data:
+                        schedules = await self.__process_schedule_difference_report(data)
+                    if self.k8s_config.backups_key in data:
+                        backups = await self.__process_backups_difference_report(data)
 
                 self.old_data = data
 
@@ -160,10 +181,10 @@ class VeleroChecker:
                     await self.__send_to_dispatcher(messages)
 
             else:
-                self.print_helper.info(f"__unpack_data.the message is not a type of dict")
+                logger.error(f"__unpack_data.the message is not a type of dict")
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"__unpack_data", err)
+            logger.error(f"__unpack_data {str(err)}")
 
     @handle_exceptions_method
     def __get_backup_error_message(self, message):
@@ -193,14 +214,14 @@ class VeleroChecker:
         Obtain cluster name
         @param data:
         """
-        self.print_helper.info(f"__process_cluster_name__")
+        # logger.info(f"__process_cluster_name__")
         nodes_name = data[self.k8s_config.cluster_name_key]
-        self.print_helper.info(f"cluster name {nodes_name}")
+        # logger.info(f"cluster name {nodes_name}")
         self.cluster_name = {'cluster_name': nodes_name}
         return self.cluster_name
 
     async def __process_backups_report(self, data):
-        self.print_helper.info("__last_backup_report")
+        # self.print_helper.info("__last_backup_report")
         try:
 
             backups = data[self.k8s_config.backups_key]
@@ -240,7 +261,7 @@ class VeleroChecker:
             list_point = '        ‣ '
 
             for backup_name, backup_info in backups.items():
-                self.print_helper.debug(f'Backup name: {backup_name}')
+                logger.debug(f'Backup name: {backup_name}')
 
                 if backup_name != "error" or 'schedule' in backup_info:
 
@@ -249,7 +270,7 @@ class VeleroChecker:
                         day = self.__extract_days_from_str(str(backup_info['expire']))
                         if day is None:
                             backup_not_retrieved += 1
-                        elif day < self.k8s_config.EXPIRES_DAYS_WARNING:
+                        elif day < self.k8s_config.expires_days_warning:
                             expired_backup += 1
                             backup_expired_str += f'\n{list_point}{str(backup_name)}'
 
@@ -304,7 +325,7 @@ class VeleroChecker:
                 message_body += f'\n{point} partially Failed={backup_partially_failed}{backup_partially_failed_str}'
             if expired_backup > 0:
                 message_body += (f'\n{point} in warning period={expired_backup} '
-                                 f'(expires day less than {self.k8s_config.EXPIRES_DAYS_WARNING}d)'
+                                 f'(expires day less than {self.k8s_config.expires_days_warning}d)'
                                  f'{backup_expired_str}')
 
             # build unscheduled namespaces string
@@ -318,20 +339,20 @@ class VeleroChecker:
                         f':\n{str_namespace}')
 
             if len(self.old_data) == 0:
-                return {'backups':  f"{message_header}{message_body}{message}"}
+                return {'backups': f"{message_header}{message_body}{message}"}
             else:
-                return {'backups':  message_body}
+                return {'backups': message_body}
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"__last_backup_report", err)
+            logger.error(f"__last_backup_report {str(err)}")
 
     async def __process_backups_difference_report(self, data):
-        self.print_helper.info("__process_backups_difference_report")
+        logger.info("Check for differences in backups")
 
         backups = data[self.k8s_config.all_backups_key]
 
-        if self.old_data[self.k8s_config.all_backups_key] == data[self.k8s_config.all_backups_key]:
-            self.print_helper.info("__process_backups_difference_report. do nothing same data")
+        if self.k8s_config.all_backups_key not in self.old_data or self.old_data[self.k8s_config.all_backups_key] == data[self.k8s_config.all_backups_key]:
+            logger.info("Check for differences in backups: do nothing same data")
             return
 
         backups_diff = self.__find_dict_difference(self.old_data[self.k8s_config.all_backups_key], backups)
@@ -343,30 +364,38 @@ class VeleroChecker:
                 backup_info = backups[backup_name]
                 message = ''
                 if 'phase' not in backup_info or ('phase' in backup_info and len(backup_info['phase']) == 0):
-                    self.print_helper.error(f'{backup_info["phase"]}: missing phase, maybe waiting for startup')
+                    logger.error(f'{backup_info["phase"]}: missing phase, maybe waiting for startup')
                 elif len(backup_info['phase']) > 0:
-                    self.print_helper.debug(f'backup_name: {backup_name} Phase: {backup_info["phase"].lower()}')
+                    logger.debug(f'backup_name: {backup_name} Phase: {backup_info["phase"].lower()}')
 
                     error = self.__get_backup_error_message(str(backup_info['errors']))
                     wrn = self.__get_backup_error_message(str(backup_info['warnings']))
 
-                    if (not config_app.get_notification_skip_completed() or len(error) > 0 or len(wrn) > 0) and backup_info['phase'].lower() == 'completed':
-                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} completed'
+                    if (not config_app.get_notification_skip_completed() or len(error) > 0 or len(wrn) > 0) and \
+                            backup_info['phase'].lower() == 'completed':
+                        message += (f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} '
+                                    f'completed')
 
                     elif not config_app.get_notification_skip_inprogress() and backup_info['phase'].lower() == 'inprogress':
-                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} in progress'
+                        message += (f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} in '
+                                    f'progress')
 
                     elif not config_app.get_notification_skip_deleting() and backup_info['phase'].lower() == 'deleting':
-                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} deleting'
+                        message += (f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} '
+                                    f'deleting')
 
                     elif backup_info['phase'].lower() == 'failed':
-                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} failed'
+                        message += (f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} '
+                                    f'failed')
 
                     elif backup_info['phase'].lower() == 'partiallyfailed':
-                        message += f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} partially failed'
+                        message += (f'{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} '
+                                    f'partially failed')
 
-                    elif backup_info['phase'].lower() not in ['completed', 'inprogress', 'deleting', 'failed', 'partiallyfailed']:
-                        message += f"{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} {backup_info['phase'].lower()}"
+                    elif backup_info['phase'].lower() not in ['completed', 'inprogress', 'deleting', 'failed',
+                                                              'partiallyfailed']:
+                        message += (f"{config_app.get_report_backup_item_prefix()}Velero backup {str(backup_name)} "
+                                    f"{backup_info['phase'].lower()}")
 
                     # add error field
                     if backup_info['phase'].lower() in ['completed', 'failed', 'partiallyfailed']:
@@ -391,28 +420,32 @@ class VeleroChecker:
             return None
 
     async def __process_schedule_difference_report(self, data):
-        self.print_helper.info("__process_schedule_difference_report")
+        logger.info("Check for differences in schedules")
 
         try:
-            if self.old_data[self.k8s_config.schedules_key] == data[self.k8s_config.schedules_key]:
-                self.print_helper.info("__process_schedule_difference_report. do nothing same data")
+            if self.k8s_config.schedules_key not in self.old_data or self.old_data[self.k8s_config.schedules_key] == data[self.k8s_config.schedules_key]:
+                logger.info("Check for differences in schedules: do nothing same data")
                 return
 
             schedule_messages = []
-            diff = self.__find_dict_difference(self.old_data[self.k8s_config.schedules_key], data[self.k8s_config.schedules_key])
+            diff = self.__find_dict_difference(self.old_data[self.k8s_config.schedules_key],
+                                               data[self.k8s_config.schedules_key])
 
             if len(diff) > 0:
                 if len(diff['removed']) > 0:
                     for rem in diff['removed']:
-                        schedule_messages.append(f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {rem} removed')
+                        schedule_messages.append(
+                            f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {rem} removed')
 
                 if len(self.old_data[self.k8s_config.schedules_key]) > 0 and len(diff['added']) > 0:
                     for add in diff['added']:
-                        schedule_messages.append(f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {add} added')
+                        schedule_messages.append(
+                            f'{config_app.get_report_schedule_item_prefix()}Velero scheduled {add} added')
 
                 if len(diff['old_values']) > 0:
                     for schedule_name in diff['old_values']:
-                        message = f"{config_app.get_report_schedule_item_prefix()}Velero scheduled {schedule_name} updated:"
+                        message = (f"{config_app.get_report_schedule_item_prefix()}Velero scheduled {schedule_name} "
+                                   f"updated:")
                         for field in diff['old_values'][schedule_name]:
                             if diff['old_values'][schedule_name][field] != diff['new_values'][schedule_name][field]:
                                 message += (f"\n{field} from {diff['old_values'][schedule_name][field]} "
@@ -422,41 +455,55 @@ class VeleroChecker:
             return {'schedules': '\n'.join(schedule_messages[::-1])}
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"__process_schedule_difference_report", err)
+            logger.error(f"{str(err)}")
 
     @handle_exceptions_async_method
     async def send_active_configuration(self, sub_title=None):
         """
-        Send a message to Telegram engine of the active setup
+        Send a message to Apprise engine of the active setup
         """
+        point = '    •'
+        # list_point = '        ‣ '
+
         title = "velero-watchdog is restarted"
         if sub_title is not None and len(sub_title) > 0:
             title = f"{title}\n{sub_title}"
 
-        self.print_helper.info(f"send_active_configuration")
+        logger.info(f"send active configuration")
 
         msg = f'Configuration setup:\n'
         if self.k8s_config is not None:
-            msg = msg + f"  . backup status= {'ENABLE' if self.k8s_config.backup_enable else '.'}\n"
-            msg = msg + f"  . scheduled status= {'ENABLE' if self.k8s_config.schedule_enable else '.'}\n"
+            msg = msg + f"{point}Notification backups ENABLE={'TRUE' if self.k8s_config.backup_enable else 'FALSE'}\n"
+            msg = msg + f"{point}Notification scheduled ENABLE={'TRUE' if self.k8s_config.schedule_enable else 'FALSE'}\n"
+            msg = msg + (f"{point}Notification skip completed="
+                         f"{'TRUE' if config_app.get_notification_skip_completed() else 'FALSE'}\n")
+            msg = msg + f"{point}Notification skip deleting={'TRUE' if config_app.get_notification_skip_deleting() else 'FALSE'}\n"
+            msg = msg + (f"{point}Notification skip in progress="
+                         f"{'TRUE' if config_app.get_notification_skip_inprogress() else 'FALSE'}\n")
+            msg = msg + f"{point}Notification skip removed={'TRUE' if config_app.get_notification_skip_removed() else 'FALSE'}\n"
+            msg = msg + f"{point}Process cycle={config_app.process_run_sec()}\n"
+            msg = msg + f"{point}Expire days warning={config_app.velero_expired_days_warning()}\n"
+            msg = msg + f"{point}Backups prefix={config_app.get_report_backup_item_prefix()}\n"
+            msg = msg + f"{point}Schedules prefix={config_app.get_report_schedule_item_prefix()}\n"
 
-            if self.alive_message_seconds >= 3600:
-                msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 3600)} hours"
-            else:
-                msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 60)} minutes"
+            # if self.alive_message_seconds >= 3600:
+            #     msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 3600)} hours"
+            # else:
+            #     msg = msg + f"\nAlive message every {int(self.alive_message_seconds / 60)} minutes"
         else:
             msg = "Error init config class"
 
         msg = f"{title}\n\n{msg}"
-        await self.__send_to_dispatcher(msg)
+
+        await self.__send_to_dispatcher({'cluster_name': config_app.k8s_cluster_identification(), 'configs': msg})
 
     async def run(self, loop=True):
         """
         Main loop of consumer k8s status_run
         """
         try:
-            self.print_helper.info("checker run")
-            if self.send_config:
+            logger.info("checker run")
+            if self.daemon and config_app.send_start_message():  # do not send configuration message in no daemon app
                 await self.send_active_configuration()
 
             flag = True
@@ -469,11 +516,15 @@ class VeleroChecker:
                 if item is None:
                     break
 
-                self.print_helper.info(f"checker new element received")
+                logger.info("Velero checker: new element received")
+                logger.debug(f"Velero checker: new element received"
+                             "\n--------------------------------------------------------------------------------------"
+                             f"\n{json.dumps(flatten_json(item), sort_keys=True, indent=4)}"
+                             f"\n-------------------------------------------------------------------------------------")
 
                 if item is not None:
                     await self.__unpack_data(item)
                     self.first_run = False
 
         except Exception as err:
-            self.print_helper.error_and_exception(f"run", err)
+            logger.error(f"run {str(err)}")

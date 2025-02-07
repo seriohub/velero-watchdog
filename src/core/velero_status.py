@@ -4,21 +4,18 @@ from kubernetes import client, config
 from collections import OrderedDict
 from config.config import Config
 
-from utils.printer import PrintHelper
 from utils.handle_error import handle_exceptions_method
-
+from utils.logger import ColoredLogger, LEVEL_MAPPING
+import logging
 
 config_app = Config()
+logger = ColoredLogger.get_logger(__name__, level=LEVEL_MAPPING.get(config_app.get_internal_log_level(), logging.INFO))
+
 
 class VeleroStatus:
 
     @handle_exceptions_method
     def __init__(self, k8s_config):
-
-        self.print_helper = PrintHelper('[core.velero_status]',
-                                        level=config_app.get_internal_log_level())
-
-        self.print_helper.debug(f"__init__")
 
         self.k8s_config = k8s_config
         if k8s_config.k8s_in_cluster_mode:
@@ -27,13 +24,12 @@ class VeleroStatus:
             config.load_kube_config(config_file=k8s_config.k8s_config_file)
         self.v1 = client.CoreV1Api()
         self.client = client.CustomObjectsApi()
-        self.expires_day_warning = k8s_config.EXPIRES_DAYS_WARNING
+        self.expires_day_warning = k8s_config.expires_days_warning
 
         self.ignored_namespace = k8s_config.ignore_namespace
 
     @handle_exceptions_method
     def __filter_ignored_namespace(self, keys_list, regex_list):
-        self.print_helper.debug('_filter_ignored_namespace...')
         # Compile regex patterns from the provided list
         compiled_regex_list = [re.compile(pattern) for pattern in regex_list]
 
@@ -56,36 +52,36 @@ class VeleroStatus:
             if not match_found:
                 filtered_keys.append(key)
             else:
-                self.print_helper.debug(f'_filter_ignored_namespace discard : {key}')
+                logger.debug(f'discard : {key}')
 
-        self.print_helper.debug(f'_filter_ignored_namespace: {loop-len(filtered_keys)}')
+        logger.debug(f'ignored namespace: {loop - len(filtered_keys)}')
 
         return filtered_keys
 
     @handle_exceptions_method
     def __get_k8s_namespace(self):
-        self.print_helper.debug('_get_namespace_list...')
+        # self.print_helper.debug('_get_namespace_list...')
 
         # Get namespaces list
         namespace_list = self.v1.list_namespace()
 
         # Extract namespace list
         namespaces = [namespace.metadata.name for namespace in namespace_list.items]
-        all_nm = 0
-        ignored_nm = 0
-        if len(namespaces) > 0:
-            all_nm = len(namespaces)
-        self.print_helper.debug(f'_get_namespace_list...=>all:{all_nm}')
+        # all_nm = 0
+        # ignored_nm = 0
+        # if len(namespaces) > 0:
+        #    all_nm = len(namespaces)
+        # self.print_helper.debug(f'_get_namespace_list...=>all:{all_nm}')
 
         # LS 2023.11.23 add ignored namespace
         if len(self.ignored_namespace) > 0:
             namespaces = self.__filter_ignored_namespace(namespaces, self.ignored_namespace)
-            ignored_nm = all_nm - len(namespaces)
-        self.print_helper.debug(f'_get_namespace_list. all nm {all_nm} Ignored {ignored_nm}')
+            # ignored_nm = all_nm - len(namespaces)
+        # self.print_helper.debug(f'_get_namespace_list. all nm {all_nm} Ignored {ignored_nm}')
 
-        self.print_helper.info(f"_get_namespace_list all: {all_nm} "
-                               f"after filter: {len(namespaces)} "
-                               f"ignored : {ignored_nm}")
+        # self.print_helper.info(f"_get_namespace_list all: {all_nm} "
+        #                        f"after filter: {len(namespaces)} "
+        #                        f"ignored : {ignored_nm}")
 
         return namespaces
 
@@ -105,7 +101,7 @@ class VeleroStatus:
         # Extract last backup for every schedule
         for backup in backup_list.get('items', []):
             try:
-            # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+                # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
                 schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
             # else:
             except:
@@ -186,7 +182,7 @@ class VeleroStatus:
 
         for backup in backup_list.get('items', []):
             try:
-            # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
+                # if backup.get('metadata', {}).get('labels').get('velero.io/schedule-name'):
                 schedule_name = backup['metadata']['labels']['velero.io/schedule-name']
             # else:
             #    schedule_name = None
@@ -270,7 +266,7 @@ class VeleroStatus:
 
             return schedule_name, included_namespaces, included_resources, default_volumes_to_fs_backup, cron_time
         except Exception as e:
-            self.print_helper.error(f"run.{e}")
+            logger.error(f"extract resource from schedule {str(e)}")
 
     @handle_exceptions_method
     def get_k8s_velero_schedules(self, namespace='velero'):
@@ -300,7 +296,7 @@ class VeleroStatus:
         return schedules
 
     @handle_exceptions_method
-    def get_unscheduled_namaspace(self, namespace='velero'):
+    def get_unscheduled_namespaces(self):
         difference, counter, counter_all = self.__get_unscheduled_namespaces()
 
         unscheduled = {'difference': difference,

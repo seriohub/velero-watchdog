@@ -6,6 +6,10 @@ metadata:
 data:
   PROCESS_CYCLE_SEC: "1800"
   PROCESS_CLUSTER_NAME: "<cluster-name>"
+  BACKUP_ENABLED: "True"
+  SCHEDULE_ENABLED: "True"
+  K8S_IN_CLUSTER_MODE: "True"
+  EXPIRES_DAYS_WARNING: "20"
 
   TELEGRAM_ENABLE: "False"
   TELEGRAM_CHAT_ID: "<chat-id>"
@@ -18,7 +22,6 @@ data:
   EMAIL_PASSWORD: "<pwd>"
   EMAIL_RECIPIENTS: "<recipients>"
 
-  BACKUP_ENABLE: "True"
-  SCHEDULE_ENABLE: "True"
-  K8S_INCLUSTER_MODE: "True"
-  EXPIRES_DAYS_WARNING: "29"
+  SLACK_ENABLE: "False"
+  SLACK_CHANNEL: "<channel-id>"
+  SLACK_TOKEN: "<token>"
