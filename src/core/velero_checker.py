@@ -465,7 +465,7 @@ class VeleroChecker:
         point = '    •'
         # list_point = '        ‣ '
 
-        title = "velero-watchdog is restarted"
+        title = "vui-watchdog is restarted"
         if sub_title is not None and len(sub_title) > 0:
             title = f"{title}\n{sub_title}"
 

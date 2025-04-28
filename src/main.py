@@ -27,7 +27,7 @@ def load_user_config():
             os.environ[key] = value
 
     apprise = get_secret_parameter(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-                                   secret_name='velero-watchdog-user-config',parameter="APPRISE")
+                                   secret_name='velero-watchdog-user-config', parameter="APPRISE")
 
     if apprise:
         print("Loading user secret: Adding APPRISE.....")
