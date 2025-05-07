@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ***
 
+[v0.1.8] - 2025-05-07
+
+🧱 Maintenance
+- Renamed repository from velero-watchdog to vui-watchdog to improve project organization
+
+🔧 Improvements
+- Updated Kubernetes object names to align with the release name
+
 ## [v0.1.7] - 2025-02-07
 
 🚀 New Features

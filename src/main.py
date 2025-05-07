@@ -19,7 +19,7 @@ def load_user_config():
 
     print("\nAdd user configs environment")
     cm = get_configmap(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-                       configmap_name='velero-watchdog-user-config')
+                       configmap_name=f"{os.getenv('HELM_RELEASE_NAME')}-watchdog-user-config")
     if cm:
         # Update environment variables
         for key, value in cm.items():
@@ -27,7 +27,7 @@ def load_user_config():
             os.environ[key] = value
 
     apprise = get_secret_parameter(namespace=os.getenv('K8S_VELERO_UI_NAMESPACE', 'velero-ui'),
-                                   secret_name='velero-watchdog-user-config',parameter="APPRISE")
+                                   secret_name=f"{os.getenv('HELM_RELEASE_NAME')}-watchdog-user-secret", parameter="APPRISE")
 
     if apprise:
         print("Loading user secret: Adding APPRISE.....")
