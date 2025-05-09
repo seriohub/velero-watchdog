@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ***
 
-### [v0.1.8] - 2025-05-07
+## [v0.1.8] - 2025-05-07
 
 🧱 Maintenance
 - Renamed repository from velero-watchdog to vui-watchdog to improve project organization
